@@ -4,7 +4,7 @@ Lightweight Flask backend for AI-DJ, fully Dockerized with dev hot-reload and pr
 
 # 1. Clone the Repo 📥 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/YagizBasaran/ai-dj.git
 cd ai-dj
 ```
 
