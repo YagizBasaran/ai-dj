@@ -1,0 +1,23 @@
+services:
+  web: # production
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-dj-flask:prod
+    container_name: ai-dj-web
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  dev: # development (instant reload)
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: ai-dj-flask:dev
+    container_name: ai-dj-dev
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./:/app
+    environment:
+      - FLASK_ENV=development
