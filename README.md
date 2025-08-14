@@ -11,6 +11,9 @@ cd ai-dj
 # 2. How to start?
 
 ## 2.1. Development (Instant Reload)
+
+- Download Docker to your computer and open it.
+
 ```bash 
 docker compose up --build dev
 ```
