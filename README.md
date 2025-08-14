@@ -23,3 +23,13 @@ docker compose up --build web
 ```
 - Visit: http://localhost:8000
 - For code changes: ```docker compose up --build web``` again because no auto-refresh here (Gunicorn)
+
+## 2.3. Extra Files
+- Add .env file and put your YOUTUBE_API_KEY="..." for generating the key follow these steps:
+
+How to Get Free YouTube API Key:
+
+- Go to Google Cloud Console
+- Create a new project or select existing
+- Enable "YouTube Data API v3"
+- Create credentials (API key)
