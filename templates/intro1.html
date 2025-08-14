@@ -1,0 +1,17 @@
+<!-- templates/intro1.html -->
+{% extends "base.html" %}
+{% block title %}Welcome to AI DJ{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="intro-container">
+        <div class="feature-icon">🎧</div>
+        <h1>Welcome to AI DJ</h1>
+        <p>Your intelligent music companion that understands your emotions, context, and musical preferences. Express how you feel in natural language, and let AI curate the perfect soundtrack for your moment.</p>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: 25%;"></div>
+        </div>
+        <a href="/intro2" class="next-btn">Get Started →</a>
+    </div>
+</div>
+{% endblock %}

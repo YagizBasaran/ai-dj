@@ -1,0 +1,20 @@
+<!-- templates/intro3.html -->
+{% extends "base.html" %}
+{% block title %}Smart Music Discovery{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="intro-container">
+        <div class="feature-icon">🔍</div>
+        <h2>Smart Music Discovery</h2>
+        <p>Find music in multiple ways:</p>
+        <p><strong>Direct Search:</strong> "Play Kendrick Lamar" or "Find Lemonade album"<br>
+        <strong>Lyric Search:</strong> "You only need the light when it's burning low"<br>
+        <strong>Context Search:</strong> "Songs for a road trip" or "Workout playlist"</p>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: 75%;"></div>
+        </div>
+        <a href="/intro4" class="next-btn">Almost Ready →</a>
+    </div>
+</div>
+{% endblock %}

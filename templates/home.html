@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI DJ - Home</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+
+        .header {
+            text-align: center;
+            padding: 2rem 0;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .main-container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        .input-section {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .input-container {
+            position: relative;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        #userInput {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            outline: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        #userInput::placeholder {
+            color: #666;
+        }
+
+        .submit-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .mood-display {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .current-player {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .current-player h3 {
+            margin-bottom: 1rem;
+        }
+
+        .youtube-player {
+            width: 100%;
+            height: 315px;
+            border-radius: 15px;
+            border: none;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .result-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .result-card:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .result-card img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+        }
+
+        .result-card h4 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            line-height: 1.3;
+        }
+
+        .result-card p {
+            font-size: 0.9rem;
+            color: #ddd;
+            margin-bottom: 0.5rem;
+        }
+
+        .channel-name {
+            font-size: 0.8rem;
+            color: #bbb;
+        }
+
+        .examples {
+            margin-top: 1rem;
+            text-align: left;
+        }
+
+        .example-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            margin: 0.5rem 0;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .example-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎧 AI DJ</h1>
+        <p>Tell me how you feel, what you want to hear, or just chat about music!</p>
+    </div>
+
+    <div class="main-container">
+        <div class="input-section">
+            <div class="input-container">
+                <input 
+                    type="text" 
+                    id="userInput" 
+                    placeholder="e.g., 'I'm feeling nostalgic and want some 90s hits' or 'Play something energetic for my workout'"
+                >
+                <button class="submit-btn" onclick="processRequest()">🎵</button>
+            </div>
+            
+            <div class="examples">
+                <p><strong>Try these examples:</strong></p>
+                <div class="example-item" onclick="fillExample('I broke up with my valentine')">
+                    💔 "I broke up with my valentine"
+                </div>
+                <div class="example-item" onclick="fillExample('Competitive match incoming in 15 mins')">
+                    ⚡ "Competitive match incoming in 15 mins"
+                </div>
+                <div class="example-item" onclick="fillExample('Need some chill music to study')">
+                    📚 "Need some chill music to study"
+                </div>
+                <div class="example-item" onclick="fillExample('You only need the light when its burning low')">
+                    🎤 "You only need the light when its burning low"
+                </div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="loading-spinner"></div>
+            <p>AI is analyzing your request and finding perfect matches...</p>
+        </div>
+
+        <div class="results-section" id="results">
+            <div class="mood-display" id="moodDisplay"></div>
+            
+            <div class="current-player" id="currentPlayer"></div>
+            
+            <div class="results-grid" id="resultsGrid"></div>
+        </div>
+    </div>
+
+    <script>
+        // Allow Enter key to submit
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                processRequest();
+            }
+        });
+
+        function fillExample(text) {
+            document.getElementById('userInput').value = text;
+        }
+
+        async function processRequest() {
+            const input = document.getElementById('userInput').value.trim();
+            if (!input) return;
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+
+            try {
+                const response = await fetch('/process_request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ input: input })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                displayResults(data);
+            } catch (error) {
+                alert('Something went wrong: ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayResults(data) {
+            // Show mood
+            const moodDisplay = document.getElementById('moodDisplay');
+            moodDisplay.innerHTML = `
+                <h3>🎯 Detected Mood: ${data.mood}</h3>
+                <p>Confidence: ${Math.round(data.confidence * 100)}%</p>
+            `;
+
+            // Show top match player
+            const currentPlayer = document.getElementById('currentPlayer');
+            if (data.top_match) {
+                currentPlayer.innerHTML = `
+                    <h3>🎵 Now Playing: ${data.top_match.title}</h3>
+                    <iframe 
+                        class="youtube-player"
+                        src="https://www.youtube.com/embed/${data.top_match.id}?autoplay=1" 
+                        frameborder="0" 
+                        allow="autoplay; encrypted-media" 
+                        allowfullscreen>
+                    </iframe>
+                    <p style="margin-top: 1rem;"><strong>Channel:</strong> ${data.top_match.channel}</p>
+                `;
+            }
+
+            // Show all results
+            const resultsGrid = document.getElementById('resultsGrid');
+            resultsGrid.innerHTML = '<h3>🎼 Other Recommendations:</h3>';
+            
+            data.results.slice(1).forEach(result => {
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                card.onclick = () => playVideo(result.id, result.title, result.channel);
+                
+                card.innerHTML = `
+                    <img src="${result.thumbnail}" alt="${result.title}">
+                    <h4>${result.title}</h4>
+                    <p>${result.description}</p>
+                    <div class="channel-name">${result.channel}</div>
+                `;
+                
+                resultsGrid.appendChild(card);
+            });
+
+            document.getElementById('results').style.display = 'block';
+        }
+
+        function playVideo(videoId, title, channel) {
+            const currentPlayer = document.getElementById('currentPlayer');
+            currentPlayer.innerHTML = `
+                <h3>🎵 Now Playing: ${title}</h3>
+                <iframe 
+                    class="youtube-player"
+                    src="https://www.youtube.com/embed/${videoId}?autoplay=1" 
+                    frameborder="0" 
+                    allow="autoplay; encrypted-media" 
+                    allowfullscreen>
+                </iframe>
+                <p style="margin-top: 1rem;"><strong>Channel:</strong> ${channel}</p>
+            `;
+            
+            // Scroll to player
+            currentPlayer.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

@@ -21,3 +21,7 @@ services:
       - ./:/app
     environment:
       - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
+    env_file:
+      - .env
