@@ -1,7 +1,3 @@
-# from flask import Flask, render_template
-
-# app = Flask(__name__)
-
 # @app.get("/health")
 # def health():
 #     return {"ok": True}
@@ -10,14 +6,61 @@
 # def home():
 #     return render_template("intro1.html")
 
-import os
+import os, json, joblib
 from flask import Flask, render_template, request, jsonify
 import requests
+import pandas as pd
+from pathlib import Path
 
 app = Flask(__name__)
 
 # You'll need to get a free YouTube Data API key from Google Cloud Console
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+
+ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", "artifacts/v1"))
+MODEL_PATH = ARTIFACTS_DIR / "model.pkl"
+FEATURES_PATH = ARTIFACTS_DIR / "numeric_features.json"
+TRACKS_PATH = ARTIFACTS_DIR / "tracks_for_rec.csv"
+
+# Load artifacts at process start
+rf_model = joblib.load(MODEL_PATH)
+numeric_features = json.loads(FEATURES_PATH.read_text())
+tracks_df = pd.read_csv(TRACKS_PATH)
+
+# Simple prompt→mood mapper (I will replace this with LLM later)
+def mood_from_prompt(text: str) -> str:
+    t = text.lower()
+    if any(k in t for k in ["heartbroken","broken","cry","tears","depressed","sad"]):
+        return "sad"
+    if any(k in t for k in ["gym","hype","pump","workout","competitive","match"]):
+        return "hype"
+    if any(k in t for k in ["romantic","date","love"]):
+        return "romantic"
+    if any(k in t for k in ["study","focus","concentrate"]):
+        return "focus"
+    if any(k in t for k in ["angry","rage"]):
+        return "angry"
+    if any(k in t for k in ["chill","calm","lofi","relax"]):
+        return "chill"
+    if any(k in t for k in ["happy","good mood","feel good"]):
+        return "happy"
+    return "happy"  # default for MVP
+
+def recommend_by_mood(mood: str, top_k: int = 20):
+    # Filter by mood
+    sub = tracks_df.loc[tracks_df["mood"] == mood]
+    if sub.empty:
+        sub = tracks_df.loc[tracks_df["mood"] == "happy"]
+
+    # Sort and de-duplicate exact same song/artist pairs, then cap
+    sub = (
+        sub.sort_values("track_popularity", ascending=False)
+           .drop_duplicates(subset=["track_name", "track_artist"], keep="first")
+           .head(top_k)
+    )
+
+    return sub[["track_name","track_artist","mood","track_popularity"]].to_dict(orient="records")
+
 
 # Mock ML processing function (replace with your actual ML later)
 def process_user_input(user_input):
@@ -139,6 +182,25 @@ def process_request():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+@app.route("/ml-test", methods=["GET", "POST"])
+def ml_test():
+    prompt = ""
+    detected_mood = None
+    recs = []
+    if request.method == "POST":
+        prompt = request.form.get("prompt", "")
+        detected_mood = mood_from_prompt(prompt)
+        recs = recommend_by_mood(detected_mood, top_k=10)
+
+    return render_template(
+        "ml_test.html",
+        prompt=prompt,
+        detected_mood=detected_mood,
+        recs=recs
+    )
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

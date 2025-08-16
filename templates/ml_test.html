@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ML Test — Prompt → Top 10</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root { --fg:#111; --muted:#666; --border:#eee; --bg:#fff; }
+      html, body { background: var(--bg); color: var(--fg); font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; }
+      .wrap { max-width: 920px; margin: 40px auto; padding: 0 16px; }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      .hint { color: var(--muted); margin-bottom: 16px; }
+      form { display: flex; gap: 8px; margin: 16px 0 24px; }
+      input[type="text"] { flex:1; padding: 10px 12px; border:1px solid #ddd; border-radius:10px; outline:none; }
+      button { padding: 10px 14px; border:0; border-radius:10px; background:#111; color:#fff; cursor:pointer; }
+      button:hover { opacity: .92; }
+      .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#f1f1f1; font-size:12px; margin: 4px 0 16px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
+      th { background:#fafafa; }
+      .empty { color: var(--muted); margin-top: 12px; }
+      .footer { color: var(--muted); font-size: 12px; margin-top: 24px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>ML Test</h1>
+      <div class="hint">Type how you feel (e.g., “broke up with my valentine”, “gym pump session”, “study focus”).</div>
+
+      <form method="POST" action="/ml-test">
+        <input type="text" name="prompt" placeholder="how do you feel?" value="{{ prompt|e }}" />
+        <button type="submit">Recommend</button>
+      </form>
+
+      {% if detected_mood %}
+        <div>Detected mood: <span class="pill">{{ detected_mood }}</span></div>
+      {% endif %}
+
+      {% if recs and recs|length > 0 %}
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Track</th>
+              <th>Artist</th>
+              <th>Mood</th>
+              <th>Popularity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in recs %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ r.track_name }}</td>
+                <td>{{ r.track_artist }}</td>
+                <td>{{ r.mood }}</td>
+                <td>{{ r.track_popularity }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% elif detected_mood %}
+        <div class="empty">No results for this mood — try another prompt.</div>
+      {% endif %}
+
+      <div class="footer">This view calls your server-side recommender and shows a de-duplicated top 10 by popularity.</div>
+    </div>
+  </body>
+</html>
