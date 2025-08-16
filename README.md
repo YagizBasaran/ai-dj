@@ -40,6 +40,6 @@ How to Get Free YouTube API Key:
 # 3. ML Model
 
 ## 3.1. Random Forest + No LLM (16.08.2025)
-- Labels are handmade, more precise and more detailed labels MUST be made.
-- After labels, a LLM MUST interpret the prompt and communicate with ML model.
+1. Labels are handmade, more precise and more detailed labels MUST be made.
+2. After labels, a LLM MUST interpret the prompt and communicate with ML model.
 - To test this version go to `http://localhost:5000/ml-test` after running dev version.
