@@ -11,17 +11,34 @@
             box-sizing: border-box;
         }
 
+        html {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        
+        html::-webkit-scrollbar {
+            display: none;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: white;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        
+        body::-webkit-scrollbar {
+            display: none;
         }
 
         .container {
-            max-width: 800px;
+            max-width: min(800px, 90vw);
             margin: 0 auto;
-            padding: 2rem;
+            padding: min(2rem, 4vw);
             text-align: center;
             min-height: 100vh;
             display: flex;
@@ -32,15 +49,16 @@
         .intro-container {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 3rem;
-            margin-bottom: 2rem;
+            border-radius: min(20px, 3vw);
+            padding: min(3rem, 6vw);
+            margin-bottom: min(2rem, 4vw);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            position: relative;
         }
 
         h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
+            font-size: clamp(2rem, 6vw, 3rem);
+            margin-bottom: min(1rem, 2vw);
             background: linear-gradient(45deg, #fff, #f0f0f0);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -48,60 +66,189 @@
         }
 
         h2 {
-            font-size: 2rem;
-            margin-bottom: 1.5rem;
+            font-size: clamp(1.5rem, 4vw, 2rem);
+            margin-bottom: min(1.5rem, 3vw);
             color: #f0f0f0;
         }
 
         p {
-            font-size: 1.2rem;
+            font-size: clamp(0.9rem, 2.5vw, 1.2rem);
             line-height: 1.6;
-            margin-bottom: 2rem;
+            margin-bottom: min(2rem, 4vw);
             color: #e0e0e0;
         }
 
         .feature-icon {
-            font-size: 4rem;
-            margin-bottom: 1rem;
+            font-size: clamp(2.5rem, 8vw, 4rem);
+            margin-bottom: min(1rem, 2vw);
         }
 
+        .intro-slider {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .intro-content {
+            display: none;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .intro-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .navigation-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: min(2rem, 4vw);
+        }
+
+        .arrow-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            width: clamp(35px, 8vw, 50px);
+            height: clamp(35px, 8vw, 50px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+            font-size: clamp(0.9rem, 2.5vw, 1.2rem);
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+        }
+        
+        .prev-btn {
+            left: clamp(-25px, -4vw, -20px);
+        }
+        
         .next-btn {
+            right: clamp(-25px, -4vw, -20px);
+        }
+
+        .arrow-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .arrow-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: translateY(-50%);
+        }
+
+        .dots-container {
+            display: flex;
+            gap: clamp(8px, 2vw, 12px);
+            justify-content: center;
+        }
+
+        .dot {
+            width: clamp(8px, 2vw, 12px);
+            height: clamp(8px, 2vw, 12px);
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .dot.active {
             background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            transform: scale(1.3);
+        }
+
+        .dot:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .final-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
             border: none;
             color: white;
-            padding: 15px 40px;
-            font-size: 1.1rem;
+            padding: clamp(10px, 2.5vw, 15px) clamp(25px, 6vw, 40px);
+            font-size: clamp(1rem, 2.2vw, 1.1rem);
             border-radius: 50px;
             cursor: pointer;
             transition: all 0.3s ease;
             text-decoration: none;
             display: inline-block;
-            margin-top: 1rem;
+            margin-top: min(1rem, 2vw);
         }
 
-        .next-btn:hover {
+        .final-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-            margin: 2rem 0;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ff6b6b, #ee5a24);
-            border-radius: 2px;
-            transition: width 0.5s ease;
         }
     </style>
 </head>
 <body>
     {% block content %}{% endblock %}
+    
+    <script>
+        function initIntroSlider() {
+            let currentSlide = 0;
+            const slides = document.querySelectorAll('.intro-content');
+            const dots = document.querySelectorAll('.dot');
+            const prevBtn = document.querySelector('.prev-btn');
+            const nextBtn = document.querySelector('.next-btn');
+            
+            if (!slides.length) return;
+            
+            function showSlide(index) {
+                slides.forEach(slide => slide.classList.remove('active'));
+                dots.forEach(dot => dot.classList.remove('active'));
+                
+                slides[index].classList.add('active');
+                dots[index].classList.add('active');
+                
+                prevBtn.disabled = index === 0;
+                nextBtn.disabled = index === slides.length - 1;
+                
+                currentSlide = index;
+            }
+            
+            function nextSlide() {
+                if (currentSlide < slides.length - 1) {
+                    showSlide(currentSlide + 1);
+                }
+            }
+            
+            function prevSlide() {
+                if (currentSlide > 0) {
+                    showSlide(currentSlide - 1);
+                }
+            }
+            
+            prevBtn.addEventListener('click', prevSlide);
+            nextBtn.addEventListener('click', nextSlide);
+            
+            dots.forEach((dot, index) => {
+                dot.addEventListener('click', () => showSlide(index));
+            });
+            
+            // Initialize first slide
+            showSlide(0);
+            
+            // Keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') prevSlide();
+                if (e.key === 'ArrowRight') nextSlide();
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', initIntroSlider);
+    </script>
 </body>
 </html>

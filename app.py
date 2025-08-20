@@ -4,7 +4,7 @@
 
 # @app.get("/")
 # def home():
-#     return render_template("intro1.html")
+#     return render_template("intro.html")
 
 import os, json, joblib
 from flask import Flask, render_template, request, jsonify
@@ -129,20 +129,8 @@ def search_youtube_music(query, max_results=5):
 
 # Routes for explanatory pages
 @app.route('/')
-def intro_page1():
-    return render_template('intro1.html')
-
-@app.route('/intro2')
-def intro_page2():
-    return render_template('intro2.html')
-
-@app.route('/intro3')
-def intro_page3():
-    return render_template('intro3.html')
-
-@app.route('/intro4')
-def intro_page4():
-    return render_template('intro4.html')
+def intro_page():
+    return render_template('intro.html')
 
 @app.route('/home')
 def home():
