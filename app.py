@@ -27,6 +27,7 @@ rf_model = joblib.load(MODEL_PATH)
 numeric_features = json.loads(FEATURES_PATH.read_text())
 tracks_df = pd.read_csv(TRACKS_PATH)
 
+# Following 2 functions are for ML
 # Simple prompt→mood mapper (I will replace this with LLM later)
 def mood_from_prompt(text: str) -> str:
     t = text.lower()
@@ -44,7 +45,7 @@ def mood_from_prompt(text: str) -> str:
         return "chill"
     if any(k in t for k in ["happy","good mood","feel good"]):
         return "happy"
-    return "happy"  # default for MVP
+    return "happy"  #!!!
 
 def recommend_by_mood(mood: str, top_k: int = 20):
     # Filter by mood
@@ -62,10 +63,11 @@ def recommend_by_mood(mood: str, top_k: int = 20):
     return sub[["track_name","track_artist","mood","track_popularity"]].to_dict(orient="records")
 
 
+#Serhat:
 # Mock ML processing function (replace with your actual ML later)
 def process_user_input(user_input):
     """
-    This is where your ML algorithms will go later.
+    This is where ML algorithms will go later.
     For now, it returns mock results based on keywords.
     """
     user_input = user_input.lower()
