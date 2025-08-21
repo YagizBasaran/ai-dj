@@ -29,6 +29,8 @@ tracks_df = pd.read_csv(TRACKS_PATH)
 
 # Following 2 functions are for ML
 # Simple prompt→mood mapper (I will replace this with LLM later)
+# Semantic retrivial here!
+# LMDB for the future
 def mood_from_prompt(text: str) -> str:
     t = text.lower()
     if any(k in t for k in ["heartbroken","broken","cry","tears","depressed","sad"]):
