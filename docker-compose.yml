@@ -19,6 +19,7 @@ services:
       - "5000:5000"
     volumes:
       - ./:/app
+      - ./artifacts:/app/artifacts
     environment:
       - FLASK_ENV=development
       - FLASK_DEBUG=1

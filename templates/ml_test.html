@@ -45,6 +45,8 @@
               <th>Artist</th>
               <th>Mood</th>
               <th>Popularity</th>
+              <th>ML score</th>       
+              <th>Final score</th>      
             </tr>
           </thead>
           <tbody>
@@ -55,6 +57,8 @@
                 <td>{{ r.track_artist }}</td>
                 <td>{{ r.mood }}</td>
                 <td>{{ r.track_popularity }}</td>
+                <td>{{ '%.3f'|format(r.ml_score|default(0)) }}</td>
+                <td>{{ '%.3f'|format(r.final_score|default(0)) }}</td>
               </tr>
             {% endfor %}
           </tbody>

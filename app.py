@@ -6,63 +6,24 @@
 # def home():
 #     return render_template("intro.html")
 
-import os, json, joblib
+import os, json
 from flask import Flask, render_template, request, jsonify
 import requests
 import pandas as pd
 from pathlib import Path
+import numpy as np
+
+from ml_core import (
+    load_artifacts,
+    mood_from_prompt,
+    recommend_by_mood,
+)
+load_artifacts(os.getenv("ARTIFACTS_DIR", "artifacts/v1"))
 
 app = Flask(__name__)
 
 # You'll need to get a free YouTube Data API key from Google Cloud Console
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-
-ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", "artifacts/v1"))
-MODEL_PATH = ARTIFACTS_DIR / "model.pkl"
-FEATURES_PATH = ARTIFACTS_DIR / "numeric_features.json"
-TRACKS_PATH = ARTIFACTS_DIR / "tracks_for_rec.csv"
-
-# Load artifacts at process start
-rf_model = joblib.load(MODEL_PATH)
-numeric_features = json.loads(FEATURES_PATH.read_text())
-tracks_df = pd.read_csv(TRACKS_PATH)
-
-# Following 2 functions are for ML
-# Simple prompt→mood mapper (I will replace this with LLM later)
-# Semantic retrivial here!
-# LMDB for the future
-def mood_from_prompt(text: str) -> str:
-    t = text.lower()
-    if any(k in t for k in ["heartbroken","broken","cry","tears","depressed","sad"]):
-        return "sad"
-    if any(k in t for k in ["gym","hype","pump","workout","competitive","match"]):
-        return "hype"
-    if any(k in t for k in ["romantic","date","love"]):
-        return "romantic"
-    if any(k in t for k in ["study","focus","concentrate"]):
-        return "focus"
-    if any(k in t for k in ["angry","rage"]):
-        return "angry"
-    if any(k in t for k in ["chill","calm","lofi","relax"]):
-        return "chill"
-    if any(k in t for k in ["happy","good mood","feel good"]):
-        return "happy"
-    return "happy"  #!!!
-
-def recommend_by_mood(mood: str, top_k: int = 20):
-    # Filter by mood
-    sub = tracks_df.loc[tracks_df["mood"] == mood]
-    if sub.empty:
-        sub = tracks_df.loc[tracks_df["mood"] == "happy"]
-
-    # Sort and de-duplicate exact same song/artist pairs, then cap
-    sub = (
-        sub.sort_values("track_popularity", ascending=False)
-           .drop_duplicates(subset=["track_name", "track_artist"], keep="first")
-           .head(top_k)
-    )
-
-    return sub[["track_name","track_artist","mood","track_popularity"]].to_dict(orient="records")
 
 
 #Serhat:
