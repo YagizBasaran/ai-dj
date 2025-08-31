@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ML Test 2 — Advanced Recommendation</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+      :root { --fg:#111; --muted:#666; --border:#eee; --bg:#fff; --accent:#0066cc; }
+      html, body { background: var(--bg); color: var(--fg); font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; }
+      .wrap { max-width: 920px; margin: 40px auto; padding: 0 16px; }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      .hint { color: var(--muted); margin-bottom: 16px; }
+      form { display: flex; gap: 8px; margin: 16px 0 24px; }
+      input[type="text"] { flex:1; padding: 10px 12px; border:1px solid #ddd; border-radius:10px; outline:none; }
+      button { padding: 10px 14px; border:0; border-radius:10px; background:#111; color:#fff; cursor:pointer; }
+      button:hover { opacity: .92; }
+      .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#f1f1f1; font-size:12px; margin: 2px 4px 2px 0; }
+      .info-section { margin: 20px 0; padding: 16px; background: #f8f9fa; border-radius: 8px; }
+      .info-section h3 { margin: 0 0 12px; font-size: 16px; color: var(--accent); }
+      .mixture-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+      .mixture-item { display: flex; justify-content: space-between; padding: 4px 0; }
+      .mixture-weight { font-weight: bold; color: var(--accent); }
+      table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+      th, td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
+      th { background:#fafafa; font-weight: 600; }
+      .empty { color: var(--muted); margin-top: 12px; text-align: center; padding: 40px; }
+      .timing { color: var(--muted); font-size: 12px; margin: 8px 0; }
+      .footer { color: var(--muted); font-size: 12px; margin-top: 24px; border-top: 1px solid var(--border); padding-top: 16px; }
+      .constraints { display: flex; flex-wrap: wrap; gap: 8px; }
+      .constraint-pill { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>ML Test 2</h1>
+      <div class="hint">Advanced ML recommendation using Serhat's prototype-based system. Try phrases like "heartbroken and sad", "need focus music", "gym pump energy".</div>
+
+      <form method="POST" action="/ml-test2">
+        <input type="text" name="prompt" placeholder="Describe your mood or situation..." value="{{ prompt|e }}" />
+        <button type="submit">Get Recommendations</button>
+      </form>
+
+      {% if timing_ms %}
+        <div class="timing">Processing time: {{ timing_ms }}ms</div>
+      {% endif %}
+
+      {% if mixture %}
+        <div class="info-section">
+          <h3>Intent Analysis</h3>
+          <div class="mixture-grid">
+            {% for proto, weight in mixture.items() %}
+              {% if weight > 0.01 %}
+                <div class="mixture-item">
+                  <span>{{ proto.replace('_', ' ').title() }}</span>
+                  <span class="mixture-weight">{{ '%.1f'|format(weight * 100) }}%</span>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if hard_constraints %}
+        <div class="info-section">
+          <h3>Applied Constraints</h3>
+          <div class="constraints">
+            {% for constraint, value in hard_constraints.items() %}
+              <span class="pill constraint-pill">{{ constraint.replace('_', ' ').title() }}: {{ value }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if recommendations and recommendations|length > 0 %}
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Track Name</th>
+              <th>Artists</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rec in recommendations %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ rec.track_name }}</td>
+                <td>{{ rec.track_artist }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% elif prompt %}
+        <div class="empty">No recommendations found for this prompt. Try a different description.</div>
+      {% endif %}
+
+      <div class="footer">
+        This view uses the advanced prototype-based ML recommendation system with intent blending and diversification.
+        The system analyzes your prompt against multiple mood prototypes and applies weighted feature matching with MMR diversification.
+      </div>
+    </div>
+  </body>
+</html>

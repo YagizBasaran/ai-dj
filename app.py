@@ -153,7 +153,32 @@ def ml_test():
         recs=recs
     )
 
+@app.route("/ml-test2", methods=["GET", "POST"])
+def ml_test2():
+    prompt = ""
+    recommendations = []
+    timing_ms = 0
+    mixture = {}
+    hard_constraints = {}
+    
+    if request.method == "POST":
+        prompt = request.form.get("prompt", "").strip()
+        if prompt:
+            from ml_serhat import recommend_from_prompt
+            result = recommend_from_prompt(prompt, topn=30)
+            recommendations = result.get("results", [])
+            timing_ms = result.get("timing_ms", 0)
+            mixture = result.get("mixture", {})
+            hard_constraints = result.get("hard", {})
+    
+    return render_template("ml_test2.html", 
+                         prompt=prompt,
+                         recommendations=recommendations,
+                         timing_ms=timing_ms,
+                         mixture=mixture,
+                         hard_constraints=hard_constraints)
 
+    
 
 if __name__ == '__main__':
     app.run(debug=True)
