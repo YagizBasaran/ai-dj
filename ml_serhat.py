@@ -14,10 +14,13 @@ from sklearn.preprocessing import StandardScaler
 
 CSV_PATH = os.getenv("CSV_PATH", "artifacts/v1/tracks_for_rec.csv")
 TOPN_DEFAULT = 20
-N_CANDIDATES = 6000        # initial candidate pool (after hard filters)
-MMR_LAMBDA = 0.7           # 0.6–0.8 usually good
+N_CANDIDATES = 10000       # initial candidate pool (after hard filters)
+MMR_LAMBDA = 0.5           # 0.4–0.6 for more diversity
 SEED = 42
 np.random.seed(SEED)
+
+# Track recently recommended songs to add penalty
+_recent_recommendations = {}
 
 # Features we’ll index
 FEATURES = [
@@ -31,8 +34,8 @@ FEATURES = [
 PROTOS = {
   "heartbreak_sad": {
     "seeds": ["heartbroken", "lost love", "lonely and tender", "sad breakup songs", "melancholic and reflective"],
-    "target": {"valence":0.25,"energy":0.30,"tempo":78,"acousticness":0.65,"danceability":0.40},
-    "weights": {"valence":3,"energy":2,"tempo":1.2,"acousticness":1.8,"danceability":1.0},
+    "target": {"valence":0.15,"energy":0.20,"tempo":70,"acousticness":0.75,"danceability":0.30},
+    "weights": {"valence":5,"energy":4,"tempo":2.5,"acousticness":3.5,"danceability":2.0},
     "hard": {}
   },
   "exam_stress": {
@@ -49,8 +52,8 @@ PROTOS = {
   },
   "workout_hype": {
     "seeds": ["hype me up", "gym pump", "competitive match energy", "adrenaline rush", "powerful beats"],
-    "target": {"valence":0.75,"energy":0.88,"tempo":138,"danceability":0.78,"loudness":-4},
-    "weights": {"energy":3,"tempo":3,"danceability":2,"loudness":1.5},
+    "target": {"valence":0.85,"energy":0.95,"tempo":150,"danceability":0.85,"loudness":-3},
+    "weights": {"energy":5,"tempo":4,"danceability":3.5,"loudness":2.5},
     "hard": {}
   },
   "party_dance": {
@@ -61,8 +64,8 @@ PROTOS = {
   },
   "chill_evening": {
     "seeds": ["chill evening", "late night calm", "relaxing mellow", "unwind after work", "calm waves"],
-    "target": {"valence":0.65,"energy":0.25,"tempo":75,"acousticness":0.6},
-    "weights": {"valence":1,"energy":2,"tempo":1.5,"acousticness":2},
+    "target": {"valence":0.6,"energy":0.15,"tempo":65,"acousticness":0.8},
+    "weights": {"valence":2,"energy":4,"tempo":3,"acousticness":4},
     "hard": {}
   },
   "angry_edgy": {
@@ -73,8 +76,8 @@ PROTOS = {
   },
   "happy_sunny": {
     "seeds": ["happy and bright", "sunny vibes", "feel good", "good mood", "optimistic upbeat"],
-    "target": {"valence":0.9,"energy":0.7,"tempo":120,"danceability":0.7},
-    "weights": {"valence":2,"energy":1.5,"tempo":1.5,"danceability":2},
+    "target": {"valence":0.95,"energy":0.8,"tempo":125,"danceability":0.8},
+    "weights": {"valence":4,"energy":3,"tempo":2.5,"danceability":3.5},
     "hard": {}
   },
   "romantic": {
@@ -152,7 +155,7 @@ def inv_scale(Xs: np.ndarray) -> np.ndarray:
 X_ORIG = inv_scale(X_SCALED)  # for hard constraint checks quickly
 
 # ---------- Intent blending ----------
-def softmax(x: np.ndarray, temp: float = 0.35) -> np.ndarray:
+def softmax(x: np.ndarray, temp: float = 0.15) -> np.ndarray:
     # cosine sims → soft weights
     x = np.asarray(x)
     # temperature scaling (higher temp → more uniform)
@@ -160,7 +163,7 @@ def softmax(x: np.ndarray, temp: float = 0.35) -> np.ndarray:
     ex = np.exp(z)
     return ex / (ex.sum() + 1e-12)
 
-def prompt_to_intent(prompt: str, temperature: float = 0.35):
+def prompt_to_intent(prompt: str, temperature: float = 0.15):
     q = embed([prompt])[0]
     keys = list(PROTOS.keys())
     sims = np.array([np.dot(q, PROTOS[k]["embedding"]) for k in keys])  # cosine since normalized
@@ -176,8 +179,8 @@ def prompt_to_intent(prompt: str, temperature: float = 0.35):
         for f, v in cfg["target"].items():
             blended_target[f] = blended_target.get(f, 0.0) + alpha * v
         for f, v in cfg["weights"].items():
-            # you can use sum; using max(alpha*v, existing) keeps weights bounded
-            blended_weights[f] = max(blended_weights.get(f, 0.0), alpha * v)
+            # additive weighting for better intent mixing
+            blended_weights[f] = blended_weights.get(f, 0.0) + alpha * v
         # merge hard constraints conservatively
         h = cfg.get("hard", {})
         if "instrumentalness_min" in h:
@@ -264,8 +267,9 @@ def mmr_select(X_scaled_sub: np.ndarray, relevance: np.ndarray, k: int, lam: flo
     # Precompute similarities
     sims = cosine_sim_rows(X_scaled_sub, X_scaled_sub)
 
-    # Start with best relevance
-    first = int(np.argmax(relevance))
+    # Start with random selection from top-3 to add variety
+    top3_idx = np.argpartition(relevance, -3)[-3:]
+    first = int(np.random.choice(top3_idx))
     selected.append(first)
     candidates.remove(first)
 
@@ -282,6 +286,35 @@ def mmr_select(X_scaled_sub: np.ndarray, relevance: np.ndarray, k: int, lam: flo
         selected.append(best_cand)
         candidates.remove(best_cand)
     return selected
+
+def add_recency_penalty(relevance: np.ndarray, idx_all: np.ndarray, penalty: float = 0.3) -> np.ndarray:
+    """Add penalty to recently recommended songs"""
+    global _recent_recommendations
+    penalized = relevance.copy()
+    
+    for i, track_idx in enumerate(idx_all):
+        track_key = f"{META_DF.iloc[track_idx]['track_name']}_{META_DF.iloc[track_idx]['track_artist']}"
+        if track_key in _recent_recommendations:
+            # Apply exponential decay penalty based on how recently it was recommended
+            calls_ago = _recent_recommendations[track_key]
+            penalty_factor = penalty * (0.7 ** calls_ago)  # decay over time
+            penalized[i] -= penalty_factor
+    return penalized
+
+def update_recent_recommendations(results: List[Dict]) -> None:
+    """Update recent recommendations tracking"""
+    global _recent_recommendations
+    # Age existing entries
+    for key in list(_recent_recommendations.keys()):
+        _recent_recommendations[key] += 1
+        # Remove entries older than 10 calls
+        if _recent_recommendations[key] > 10:
+            del _recent_recommendations[key]
+    
+    # Add new recommendations
+    for track in results:
+        track_key = f"{track['track_name']}_{track['track_artist']}"
+        _recent_recommendations[track_key] = 0
 
 # ---------- Main recommend ----------
 def recommend_from_prompt(prompt: str, topn: int = TOPN_DEFAULT) -> Dict:
@@ -314,8 +347,11 @@ def recommend_from_prompt(prompt: str, topn: int = TOPN_DEFAULT) -> Dict:
     pop_i = FEATURES.index("track_popularity")
     pop = (X_ORIG[idx_all, pop_i] - 0) / (100.0 + 1e-9)
 
-    # Higher is better
-    rel = -d + 0.15 * pop
+    # Higher is better, reduced popularity weight
+    rel = -d + 0.05 * pop
+    
+    # Add recency penalty to avoid repetitive recommendations
+    rel = add_recency_penalty(rel, idx_all)
 
     # Take top candidates by rel first
     k0 = min(N_CANDIDATES, len(idx_all))
@@ -335,6 +371,9 @@ def recommend_from_prompt(prompt: str, topn: int = TOPN_DEFAULT) -> Dict:
             "track_name": str(META_DF.iloc[j]["track_name"]),
             "track_artist": str(META_DF.iloc[j]["track_artist"])
         })
+    
+    # Update recent recommendations tracking
+    update_recent_recommendations(out)
 
     return {
         "prompt": prompt,
