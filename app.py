@@ -164,8 +164,8 @@ def ml_test2():
     if request.method == "POST":
         prompt = request.form.get("prompt", "").strip()
         if prompt:
-            from ml_serhat import recommend_from_prompt
-            result = recommend_from_prompt(prompt, topn=30)
+            from ml_serhat import recommend_from_prompt_semantic
+            result = recommend_from_prompt_semantic(prompt, topn=30)
             recommendations = result.get("results", [])
             timing_ms = result.get("timing_ms", 0)
             mixture = result.get("mixture", {})
