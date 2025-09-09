@@ -731,29 +731,3 @@ def recommend_from_prompt_semantic(prompt: str, topn: int = 20) -> Dict:
         'analysis': result['analysis'],
         'total_candidates': result['total_candidates']
     }
-
-# Usage example
-def test_semantic_recommender():
-    # Initialize with your CSV
-    recommender = SemanticMusicRecommender('artifacts/v1/tracks_for_rec.csv')
-    
-    test_prompts = [
-        "I'm terrified and need something calming",
-        "Happy upbeat music for working out", 
-        "Sad songs for a breakup",
-        "Chill instrumental music for studying",
-        "Romantic music for a date night"
-    ]
-    
-    for prompt in test_prompts:
-        print(f"\n=== Prompt: '{prompt}' ===")
-        
-        results = recommender.recommend(prompt, top_k=5)
-        
-        print(f"Analysis: {results['analysis']}")
-        print("\nTop recommendations:")
-        
-        for i, track in enumerate(results['recommendations'][:5], 1):
-            print(f"{i}. {track['track_name']} - {track['track_artist']}")
-            print(f"   Mood: {track['mood']}, Similarity: {track['similarity_score']:.3f}")
-            print(f"   Final Score: {track['final_score']:.3f} (bonus: {track['context_bonus']:.3f})")

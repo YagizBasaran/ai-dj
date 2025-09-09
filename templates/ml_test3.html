@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI DJ - ML Test 3 with Gemini</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            min-height: 100px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        input[type="number"] {
+            width: 100px;
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .results {
+            margin-top: 30px;
+        }
+        .features-used {
+            background: #e9f4ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .recommendation {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #fafafa;
+        }
+        .similarity-score {
+            float: right;
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .track-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            color: #856404;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 AI DJ Recommender - ML Test 3 (Gemini Powered)</h1>
+        
+        <form method="POST">
+            <div class="form-group">
+                <label for="prompt">Describe the music you want:</label>
+                <textarea 
+                    name="prompt" 
+                    id="prompt" 
+                    placeholder="e.g., I want upbeat danceable songs with high energy for a workout session"
+                    required>{{ prompt }}</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="k">Number of recommendations:</label>
+                <input type="number" name="k" id="k" min="1" max="50" value="{{ k or 10 }}">
+            </div>
+            
+            <button type="submit">Get Recommendations</button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing your prompt with Gemini AI...</p>
+        </div>
+
+        {% if results %}
+        <div class="results">
+            {% if warning %}
+            <div class="warning">
+                <strong>⚠️ Warning:</strong> {{ warning }}
+            </div>
+            {% endif %}
+
+            {% if used_features %}
+            <div class="features-used">
+                <strong>🎯 Features extracted from your prompt:</strong>
+                <ul>
+                    {% for feature in used_features %}
+                    <li>{{ feature }}: {{ vector.get(feature, 'N/A') }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <h2>🎶 Recommended Tracks</h2>
+            {% for track in results %}
+            <div class="recommendation">
+                <span class="similarity-score">{{ "%.1f%%" | format(track.similarity * 100) }}</span>
+                <h3>{{ track.track_name }}</h3>
+                <p><strong>Artist:</strong> {{ track.artists }}</p>
+                <p><strong>Album:</strong> {{ track.album_name }}</p>
+                <p><strong>Genre:</strong> {{ track.track_genre }} | <strong>Popularity:</strong> {{ track.popularity }}</p>
+                
+                <div class="track-details">
+                    <div>Danceability: {{ "%.2f" | format(track.danceability) }}</div>
+                    <div>Energy: {{ "%.2f" | format(track.energy) }}</div>
+                    <div>Valence: {{ "%.2f" | format(track.valence) }}</div>
+                    <div>Acousticness: {{ "%.2f" | format(track.acousticness) }}</div>
+                    <div>Instrumentalness: {{ "%.2f" | format(track.instrumentalness) }}</div>
+                    <div>Speechiness: {{ "%.2f" | format(track.speechiness) }}</div>
+                    <div>Liveness: {{ "%.2f" | format(track.liveness) }}</div>
+                    <div>Tempo: {{ "%.0f" | format(track.tempo) }} BPM</div>
+                    <div>Loudness: {{ "%.2f" | format(track.loudness) }} dB</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        document.querySelector('form').addEventListener('submit', function() {
+            document.getElementById('loading').style.display = 'block';
+        });
+    </script>
+</body>
+</html>

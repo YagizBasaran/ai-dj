@@ -178,6 +178,43 @@ def ml_test2():
                          mixture=mixture,
                          hard_constraints=hard_constraints)
 
+
+
+from ml_test3 import AIDJRecommender
+
+reco = AIDJRecommender.from_csv("dataset/processed_dataset.csv")
+
+@app.route("/ml-test3", methods=["GET", "POST"])
+def ml_test3():
+    prompt = ""
+    results = []
+    used_features = []
+    vector = {}
+    warning = ""
+    k = 10
+    
+    if request.method == "POST":
+        prompt = request.form.get("prompt", "").strip()
+        k = int(request.form.get("k", 10))
+        
+        if prompt:
+            try:
+                result = reco.recommend(prompt, k)
+                results = result.get("results", [])
+                used_features = result.get("used_features", [])
+                vector = result.get("vector", {})
+                warning = result.get("warning", "")
+            except Exception as e:
+                warning = f"Error processing request: {str(e)}"
+    
+    return render_template("ml_test3.html", 
+                         prompt=prompt, 
+                         results=results,
+                         used_features=used_features,
+                         vector=vector,
+                         warning=warning,
+                         k=k)
+
     
 
 if __name__ == '__main__':
