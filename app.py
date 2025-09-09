@@ -17,10 +17,26 @@ from ml_core import (
     load_artifacts,
     mood_from_prompt,
     recommend_by_mood,
+    has_model,
+    tracks_df,
+    numeric_features
 )
-load_artifacts(os.getenv("ARTIFACTS_DIR", "artifacts/v1"))
 
 app = Flask(__name__)
+
+# Load artifacts and debug
+load_artifacts("artifacts/v2")
+print(f"=== DEBUG INFO ===")
+print(f"Model loaded: {has_model()}")
+print(f"Tracks loaded: {len(tracks_df()) if tracks_df() is not None else 'None'}")
+print(f"Features: {numeric_features()}")
+
+# Test model classes if loaded
+if has_model():
+    from ml_core import _rf_bundle
+    model = _rf_bundle["model"]
+    print(f"Model classes: {list(model.classes_)}")
+print(f"=== END DEBUG ===")
 
 # You'll need to get a free YouTube Data API key from Google Cloud Console
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")

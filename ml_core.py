@@ -31,31 +31,29 @@ def has_model() -> bool:
 
 # ---------- Load artifacts ----------
 def load_artifacts(artifacts_dir: Optional[str] = None) -> None:
-    """
-    Load model.pkl, numeric_features.json, tracks_for_rec.csv into module globals.
-    Safe to call multiple times (e.g., on startup or hot-reload).
-    """
     global _ARTIFACTS_DIR, _rf_bundle, _numeric_features, _tracks_df
 
-    _ARTIFACTS_DIR = artifacts_dir or os.getenv("ARTIFACTS_DIR", "artifacts/v1")
-    base = Path(_ARTIFACTS_DIR)
-
-    model_path = base / "model.pkl"
-    feats_path = base / "numeric_features.json"
-    tracks_path = base / "tracks_for_rec.csv"
+    model_version = artifacts_dir or os.getenv("MODEL_VERSION", "v2")
+    
+    # Shared files
+    shared_path = Path("artifacts/shared")
+    model_path = Path("artifacts/models") / model_version / "model.pkl"
 
     try:
         _rf_bundle = joblib.load(model_path) if model_path.exists() else None
-
+        
+        feats_path = shared_path / "numeric_features.json"
         if feats_path.exists():
             with open(feats_path, "r", encoding="utf-8") as f:
                 _numeric_features = json.load(f)
         else:
             _numeric_features = None
 
+        tracks_path = shared_path / "tracks_for_rec.csv"
         _tracks_df = pd.read_csv(tracks_path) if tracks_path.exists() else None
+        
     except Exception as e:
-        print(f"[WARN] Could not load artifacts from '{_ARTIFACTS_DIR}': {e}")
+        print(f"[WARN] Could not load artifacts: {e}")
         _rf_bundle = None
         _numeric_features = None
         _tracks_df = None

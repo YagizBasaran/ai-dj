@@ -23,7 +23,7 @@ services:
     environment:
       - FLASK_ENV=development
       - FLASK_DEBUG=1
-      - ARTIFACTS_DIR=artifacts/v1
+      - ARTIFACTS_DIR=artifacts/v2
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
     env_file:
       - .env
