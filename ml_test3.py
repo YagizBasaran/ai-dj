@@ -361,17 +361,21 @@ PREDEFINED_TRACK_GENRES: List[str] = [
 ]
 
 LLM_SYSTEM_FEATURES = (
-    "You are a precise music feature extractor. "
-    "Convert the user's free text prompt into continuous numeric audio feature "
-    "values without using defaults, keywords, or rounding. If the prompt does "
-    "not provide enough information to infer a feature with reasonable confidence, "
-    "return null for that feature. Never fabricate values."
+    "You are a precise music feature extractor with deep understanding of musical characteristics. "
+    "Analyze the user's prompt semantically to extract 9 specific audio features. Each feature "
+    "represents a measurable aspect of music that affects how a song feels and sounds. "
+    "Consider the emotional context, energy level, musical style, and descriptive words in the prompt. "
+    "Map these semantic meanings to numeric values within the specified ranges. "
+    "Only return null if the prompt provides absolutely no relevant information for a feature."
 )
 
 LLM_SYSTEM_GENRE = (
-    "You are a music genre classifier. Analyze the given prompt and identify "
-    "the most likely music genre. Return only the genre name as a string, or "
-    "return null if the genre cannot be determined from the prompt."
+    "You are an expert music genre classifier with deep knowledge of musical styles and characteristics. "
+    "Analyze the user's prompt semantically to understand the musical style, mood, cultural context, "
+    "and descriptive elements they're looking for. Consider keywords like instruments, cultural references, "
+    "energy levels, time periods, and emotional descriptions. Match these semantic elements to the most "
+    "appropriate genre from the provided list. If multiple genres could apply, choose the most specific one. "
+    "Return the exact genre name from the list, or null if no reasonable match can be determined."
 )
 
 def _build_user_prompt(
@@ -379,37 +383,74 @@ def _build_user_prompt(
     features: List[str],
     minmax: Dict[str, Tuple[float, float]],
 ) -> str:
+    feature_descriptions = {
+        "danceability": "How suitable the track is for dancing (0.0-0.98). Higher values = more danceable, rhythmic, steady beat.",
+        "energy": "Perceived energy and intensity (0.0-1.0). Higher values = louder, faster, noisier, more energetic.",
+        "loudness": "Overall loudness in dB (-49.5 to 4.53). Higher values = louder tracks.",
+        "speechiness": "Presence of spoken words (0.0-0.96). Higher values = more speech-like, rap, talk shows.",
+        "acousticness": "Acoustic vs electric instruments (0.0-1.0). Higher values = more acoustic, organic sound.",
+        "instrumentalness": "Lack of vocals (0.0-1.0). Higher values = fewer vocals, more instrumental.",
+        "liveness": "Live performance detection (0.0-1.0). Higher values = more likely recorded live.",
+        "valence": "Musical positivity/mood (0.0-0.99). Higher values = happier, euphoric, positive.",
+        "tempo": "Beats per minute (0-243 BPM). Actual tempo of the track."
+    }
+    
     spec = {
-        "notes": [
-            "Return a JSON object with exactly these feature keys.",
-            "Values must be continuous and within plausible numeric ranges.",
-            "If a feature cannot be inferred, set it to null.",
-            "tempo is BPM if present; set null if unclear.",
-            "All features should be between 0.0 and 1.0 except tempo which is BPM.",
+        "task": "Analyze the prompt semantically and map it to these 9 musical features",
+        "semantic_guidelines": [
+            "Consider emotional words (happy→high valence, sad→low valence)",
+            "Energy words (energetic→high energy, chill→low energy)",
+            "Musical styles (acoustic→high acousticness, electronic→low acousticness)",
+            "Vocal descriptions (instrumental→high instrumentalness, singing→low instrumentalness)",
+            "Tempo indicators (fast→high tempo, slow→low tempo)",
+            "Dance context (party→high danceability, study→low danceability)",
+            "Live context (concert→high liveness, studio→low liveness)"
         ],
         "features": {
             f: {
+                "description": feature_descriptions[f],
                 "range": list(minmax.get(f, (0.0, 1.0))),
                 "type": "number"
             } for f in features
         },
+        "instructions": [
+            "Analyze the semantic meaning of the prompt",
+            "Map emotional and descriptive elements to appropriate feature values",
+            "Use the full range of each feature based on semantic intensity",
+            "Return null only if the prompt gives no relevant information for that feature",
+            "Be consistent: similar prompts should yield similar feature vectors"
+        ]
     }
     return json.dumps({
-        "instruction": "Extract numeric values, or null when uncertain.",
-        "feature_spec": spec,
-        "prompt": prompt,
-        "output_schema": {f: None for f in features},
-        "output_must_be_json_object_with_only_these_keys": features,
-    }, ensure_ascii=False)
+        "user_prompt": prompt,
+        "feature_specification": spec,
+        "required_output": "JSON object with exact feature names as keys",
+        "output_schema": {f: None for f in features}
+    }, ensure_ascii=False, indent=2)
 
 def _build_genre_prompt(prompt: str, genres: List[str]) -> str:
     return json.dumps({
-        "instruction": "Identify the most likely music genre from the prompt.",
-        "prompt": prompt,
-        "available_genres": genres[:20] if len(genres) > 20 else genres,  # Show sample genres
-        "note": f"Total available genres: {len(genres)}. Return the exact genre name or null if uncertain.",
-        "output_format": "Just the genre name as a string, or null"
-    }, ensure_ascii=False)
+        "task": "Analyze the user prompt semantically to identify the most appropriate music genre",
+        "user_prompt": prompt,
+        "semantic_analysis_guidelines": [
+            "Look for explicit genre mentions (rock, pop, jazz, etc.)",
+            "Identify musical instruments (guitar→rock, piano→classical, synthesizer→electronic)",
+            "Consider cultural/language references (spanish→spanish, korean→k-pop)",
+            "Analyze energy/mood descriptors (energetic→edm/rock, chill→ambient/study)",
+            "Look for time period indicators (80s→synth-pop, vintage→blues/jazz)",
+            "Consider activity context (workout→edm/hip-hop, study→ambient/chill)",
+            "Identify vocal styles (rap→hip-hop, operatic→opera)"
+        ],
+        "available_genres": genres,
+        "instructions": [
+            "First understand what the user is describing musically",
+            "Match semantic elements to genre characteristics from the available_genres list",
+            "You MUST choose from the exact genres provided in available_genres list",
+            "Return the exact genre name as it appears in the list",
+            "Return null only if absolutely no reasonable match exists"
+        ],
+        "output_format": "Exact genre name as string from available_genres list, or null"
+    }, ensure_ascii=False, indent=2)
 
 
 @dataclass
@@ -515,14 +556,37 @@ class AIDJRecommender:
             out: Dict[str, Optional[float]] = {}
             for f in self.features:
                 v = data.get(f, None)
+                if v is None:
+                    out[f] = None
+                    continue
+                    
                 try:
-                    out[f] = float(v) if v is not None else None
+                    val = float(v)
+                    # Validate and clamp values to proper ranges
+                    out[f] = self._validate_and_clamp_feature(f, val)
                 except Exception:
                     out[f] = None
             return out
         except Exception as e:
             print(f"Gemini API error: {e}")
             return {f: None for f in self.features}
+    
+    def _validate_and_clamp_feature(self, feature_name: str, value: float) -> float:
+        """Validate and clamp feature values to their proper ranges"""
+        feature_ranges = {
+            "danceability": (0.0, 0.98),
+            "energy": (0.0, 1.0),
+            "loudness": (-49.5, 4.53),
+            "speechiness": (0.0, 0.96),
+            "acousticness": (0.0, 1.0),
+            "instrumentalness": (0.0, 1.0),
+            "liveness": (0.0, 1.0),
+            "valence": (0.0, 0.99),
+            "tempo": (0.0, 243.0)
+        }
+        
+        min_val, max_val = feature_ranges.get(feature_name, (0.0, 1.0))
+        return float(np.clip(value, min_val, max_val))
 
     # ---- Scale a feature map to [0,1] using dataset min/max (no rounding). ----
     def _scale_feature_map(self, feat_map: Dict[str, Optional[float]]) -> np.ndarray:
@@ -538,7 +602,7 @@ class AIDJRecommender:
                 vec.append(float(np.clip(norm, 0.0, 1.0)))
         return np.array(vec, dtype=float)
 
-    # ---- Main API: get top-K similar tracks for a prompt. ----
+    # ---- Enhanced recommendation with better semantic analysis ----
     def recommend(self, prompt: str, k: int = 10) -> Dict:
         # First, detect genre from prompt
         detected_genre = self.prompt_to_genre(prompt)
