@@ -170,7 +170,7 @@ def rank_candidates_with_rf(candidates: pd.DataFrame, target_mood: str, top_k: i
     df = _diversify_by_artist(df, artist_col="track_artist", top_k=top_k, per_artist_cap=2)
     return df.head(top_k)
 
-
+#CLASSIC FIRST VERSION
 def recommend_by_mood(mood: str, top_k: int = 20):
     if _tracks_df is None or len(_tracks_df) == 0:
         return []
@@ -189,6 +189,50 @@ def recommend_by_mood(mood: str, top_k: int = 20):
     return ranked[cols].to_dict(orient="records")
 
 
+#Experimental new one 7/3 ratio
+def recommend_by_mood_with_preference(mood: str, preference: str = "balanced", top_k: int = 10):
+    """
+    Recommend songs with Discovery/Classic preference
+    preference: "discovery", "mainstream", or "balanced"
+    """
+    if _tracks_df is None or len(_tracks_df) == 0:
+        return []
+
+    # Get a larger pool for better selection
+    pool = _tracks_df
+    ranked = rank_candidates_with_rf(pool, target_mood=mood, top_k=50)  # Get more candidates
+    
+    if len(ranked) == 0:
+        return []
+    
+    # Define popularity threshold (you can adjust this)
+    popularity_threshold = ranked["track_popularity"].median()
+    
+    # Split into popular and non-popular
+    popular_songs = ranked[ranked["track_popularity"] >= popularity_threshold]
+    non_popular_songs = ranked[ranked["track_popularity"] < popularity_threshold]
+    
+    # Shuffle for randomness
+    popular_songs = popular_songs.sample(frac=1, random_state=None).reset_index(drop=True)
+    non_popular_songs = non_popular_songs.sample(frac=1, random_state=None).reset_index(drop=True)
+    
+    # Apply preference logic
+    if preference == "discovery":
+        # 7 non-popular + 3 popular
+        selected = []
+        selected.extend(non_popular_songs.head(7).to_dict(orient="records"))
+        selected.extend(popular_songs.head(3).to_dict(orient="records"))
+    elif preference == "mainstream":
+        # 7 popular + 3 non-popular  
+        selected = []
+        selected.extend(popular_songs.head(7).to_dict(orient="records"))
+        selected.extend(non_popular_songs.head(3).to_dict(orient="records"))
+    else:  # balanced
+        # Original behavior
+        selected = ranked.head(top_k).to_dict(orient="records")
+    
+    # Return only the requested number
+    return selected[:top_k]
 
 # print(">>> ARTIFACTS DIR:", _ARTIFACTS_DIR)
 # print(">>> MODEL PATH EXISTS:", (Path(_ARTIFACTS_DIR) / "model.pkl").exists())

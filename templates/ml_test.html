@@ -8,13 +8,42 @@
       :root { --fg:#111; --muted:#666; --border:#eee; --bg:#fff; }
       html, body { background: var(--bg); color: var(--fg); font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; }
       .wrap { max-width: 920px; margin: 40px auto; padding: 0 16px; }
-      h1 { margin: 0 0 8px; font-size: 28px; }
+      h1 { margin: 0 0 8px; font-size: 28px; display: inline-block; }
       .hint { color: var(--muted); margin-bottom: 16px; }
+      .header-section { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+      .mode-buttons { display: flex; gap: 8px; }
+      .mode-button { 
+        padding: 8px 16px; 
+        border: 0; 
+        border-radius: 8px; 
+        cursor: pointer; 
+        font-size: 14px;
+        font-weight: 500;
+        text-decoration: none;
+        transition: opacity 0.2s;
+      }
+      .mode-button:hover { opacity: 0.8; }
+      .mode-button.discovery { background: #3b82f6; color: white; }
+      .mode-button.mainstream { background: #f97316; color: white; }
+      .mode-button.balanced { background: #10b981; color: white; }
+      .mode-button.active { box-shadow: 0 0 0 2px rgba(0,0,0,0.2); }
       form { display: flex; gap: 8px; margin: 16px 0 24px; }
       input[type="text"] { flex:1; padding: 10px 12px; border:1px solid #ddd; border-radius:10px; outline:none; }
       button { padding: 10px 14px; border:0; border-radius:10px; background:#111; color:#fff; cursor:pointer; }
       button:hover { opacity: .92; }
       .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#f1f1f1; font-size:12px; margin: 4px 0 16px; }
+      .mode-pill { 
+        display: inline-block; 
+        padding: 6px 12px; 
+        border-radius: 6px; 
+        font-size: 14px; 
+        font-weight: 500;
+        margin: 4px 0 16px;
+        border: 2px solid;
+      }
+      .mode-pill.discovery { background: #dbeafe; color: #1e40af; border-color: #3b82f6; }
+      .mode-pill.mainstream { background: #fed7aa; color: #c2410c; border-color: #f97316; }
+      .mode-pill.balanced { background: #d1fae5; color: #047857; border-color: #10b981; }
       table { width: 100%; border-collapse: collapse; }
       th, td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
       th { background:#fafafa; }
@@ -24,16 +53,38 @@
   </head>
   <body>
     <div class="wrap">
-      <h1>ML Test</h1>
-      <div class="hint">Type how you feel (e.g., “broke up with my valentine”, “gym pump session”, “study focus”).</div>
+      <div class="header-section">
+        <h1>ML Test</h1>
+        <div class="mode-buttons">
+          <button type="button" class="mode-button discovery {% if preference == 'discovery' %}active{% endif %}" 
+                  onclick="setPreference('discovery')">
+            Discovery
+          </button>
+          <button type="button" class="mode-button mainstream {% if preference == 'mainstream' %}active{% endif %}" 
+                  onclick="setPreference('mainstream')">
+            Mainstream
+          </button>
+          <button type="button" class="mode-button balanced {% if preference == 'balanced' %}active{% endif %}" 
+                  onclick="setPreference('balanced')">
+            Balanced
+          </button>
+        </div>
+      </div>
 
-      <form method="POST" action="/ml-test">
+      <div class="hint">Type how you feel (e.g., "broke up with my valentine", "gym pump session", "study focus").</div>
+
+      <form method="POST" action="/ml-test" id="recommendForm">
+        <input type="hidden" name="preference" id="preferenceInput" value="{{ preference or 'discovery' }}" />
         <input type="text" name="prompt" placeholder="how do you feel?" value="{{ prompt|e }}" />
         <button type="submit">Recommend</button>
       </form>
 
       {% if detected_mood %}
         <div>Detected mood: <span class="pill">{{ detected_mood }}</span></div>
+      {% endif %}
+
+      {% if preference %}
+        <div>Mode: <span class="mode-pill {{ preference }}">{{ preference|title }}</span></div>
       {% endif %}
 
       {% if recs and recs|length > 0 %}
@@ -67,7 +118,25 @@
         <div class="empty">No results for this mood — try another prompt.</div>
       {% endif %}
 
-      <div class="footer">This view calls your server-side recommender and shows a de-duplicated top 10 by popularity.</div>
+      <div class="footer">This view calls your server-side recommender and shows mood-based recommendations with your selected preference.</div>
     </div>
+
+    <script>
+      function setPreference(pref) {
+        document.getElementById('preferenceInput').value = pref;
+        
+        // Update button states
+        document.querySelectorAll('.mode-button').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        document.querySelector('.mode-button.' + pref).classList.add('active');
+        
+        // Auto-submit if there's a prompt
+        const promptInput = document.querySelector('input[name="prompt"]');
+        if (promptInput.value.trim()) {
+          document.getElementById('recommendForm').submit();
+        }
+      }
+    </script>
   </body>
 </html>

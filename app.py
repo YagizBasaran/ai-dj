@@ -180,16 +180,23 @@ def ml_test():
     prompt = ""
     detected_mood = None
     recs = []
+    preference = "balanced"  # default
+    
     if request.method == "POST":
         prompt = request.form.get("prompt", "")
+        preference = request.form.get("preference", "balanced")
         detected_mood = mood_from_prompt(prompt)
-        recs = recommend_by_mood(detected_mood, top_k=10)
+        
+        # Use the new function with preference
+        from ml_core import recommend_by_mood_with_preference
+        recs = recommend_by_mood_with_preference(detected_mood, preference, top_k=10)
 
     return render_template(
         "ml_test.html",
         prompt=prompt,
         detected_mood=detected_mood,
-        recs=recs
+        recs=recs,
+        preference=preference
     )
 
 
