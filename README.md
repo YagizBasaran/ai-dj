@@ -43,3 +43,9 @@ How to Get Free YouTube API Key:
 1. Labels are handmade, more precise and more detailed labels MUST be made.
 2. After labels, a LLM MUST interpret the prompt and communicate with ML model.
 - To test this version go to `http://localhost:5000/ml-test` after running dev version.
+
+### 3.1.1 Random Forest v2 + No LLM (10.09.2025) at understaning the user prompt
+1. Serhat's Gemini algorithm could be used.
+2. Might require better labeling at the model (google colab ipynb file)
+3. Creates scores (%95 ML model + %5 popularity)
+- To test this version go to `http://localhost:5000/ml-test` after running dev version.
