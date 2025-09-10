@@ -24,19 +24,42 @@ from ml_core import (
 
 app = Flask(__name__)
 
-# Load artifacts and debug
-load_artifacts("artifacts/v2")
-print(f"=== DEBUG INFO ===")
+# Debug file system BEFORE loading
+print(f"=== FILE SYSTEM DEBUG ===")
+print(f"Current working directory: {os.getcwd()}")
+
+shared_path = Path("artifacts/shared")
+model_path = Path("artifacts/models/v2/model.pkl")
+
+print(f"Shared path exists: {shared_path.exists()}")
+print(f"Model path exists: {model_path.exists()}")
+
+if shared_path.exists():
+    print(f"Contents of shared/: {os.listdir(shared_path)}")
+
+models_path = Path("artifacts/models")
+if models_path.exists():
+    print(f"Contents of models/: {os.listdir(models_path)}")
+    v2_path = models_path / "v2"
+    if v2_path.exists():
+        print(f"Contents of models/v2/: {os.listdir(v2_path)}")
+
+print(f"=== END FILE SYSTEM DEBUG ===")
+
+# NOW load the artifacts
+load_artifacts()  # This was missing!
+
+# Debug loading results
+print(f"=== LOADING DEBUG ===")
 print(f"Model loaded: {has_model()}")
 print(f"Tracks loaded: {len(tracks_df()) if tracks_df() is not None else 'None'}")
 print(f"Features: {numeric_features()}")
 
-# Test model classes if loaded
 if has_model():
     from ml_core import _rf_bundle
     model = _rf_bundle["model"]
     print(f"Model classes: {list(model.classes_)}")
-print(f"=== END DEBUG ===")
+print(f"=== END LOADING DEBUG ===")
 
 # You'll need to get a free YouTube Data API key from Google Cloud Console
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")

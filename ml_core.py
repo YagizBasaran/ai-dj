@@ -11,7 +11,7 @@ _rf_bundle = None          # {"model": RandomForestClassifier, "scaler": Standar
 _numeric_features = None   # list[string]
 _tracks_df = None          # pandas.DataFrame
 
-# ---------- Public getters (optional) ----------
+# ---------- Public getters (optional) for Debugggingggg ----------
 def tracks_df() -> Optional[pd.DataFrame]:
     return _tracks_df
 
@@ -58,8 +58,8 @@ def load_artifacts(artifacts_dir: Optional[str] = None) -> None:
         _numeric_features = None
         _tracks_df = None
 
-# Eager-load once on import (optional). You can also call load_artifacts() from app.py.
-load_artifacts()
+# Eager-load once on import (optional). can also call load_artifacts() from app.py.
+# load_artifacts()
 
 # ---------- Helpers ----------
 def _class_index(model, target_label: str) -> Optional[int]:
@@ -113,7 +113,6 @@ def _resolve_model_label(target: str, model_classes) -> str:
     # final fallback
     return "happy" if "happy" in model_classes else model_classes[0]
 
-# ---------- Public ML APIs ----------
 def mood_from_prompt(text: str) -> str:
     t = (text or "").lower()
     # expanded sad patterns
