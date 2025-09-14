@@ -4,12 +4,16 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from typing import Optional
+import google.generativeai as genai
 
 # ---------- Module-level state ----------
 _ARTIFACTS_DIR = None
 _rf_bundle = None          # {"model": RandomForestClassifier, "scaler": StandardScaler}
 _numeric_features = None   # list[string]
 _tracks_df = None          # pandas.DataFrame
+
+# Configure Gemini API
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # ---------- Public getters (optional) for Debugggingggg ----------
 def tracks_df() -> Optional[pd.DataFrame]:
@@ -49,7 +53,8 @@ def load_artifacts(artifacts_dir: Optional[str] = None) -> None:
         else:
             _numeric_features = None
 
-        tracks_path = shared_path / "tracks_for_rec.csv"
+        # tracks_path = shared_path / "tracks_for_rec.csv"
+        tracks_path = shared_path / "combined_dataset 2.csv"
         _tracks_df = pd.read_csv(tracks_path) if tracks_path.exists() else None
         
     except Exception as e:
@@ -114,25 +119,64 @@ def _resolve_model_label(target: str, model_classes) -> str:
     return "happy" if "happy" in model_classes else model_classes[0]
 
 def mood_from_prompt(text: str) -> str:
-    t = (text or "").lower()
-    # expanded sad patterns
-    if any(k in t for k in [
-        "heartbroken","broken","broke up","break up","breakup","cry","tears","depressed","sad"
-    ]):
-        return "sad"
-    if any(k in t for k in ["gym","hype","pump","workout","competitive","match"]):
-        return "hype"
-    if any(k in t for k in ["romantic","date","love"]):
-        return "romantic"
-    if any(k in t for k in ["study","focus","concentrate"]):
-        return "focus"
-    if any(k in t for k in ["angry","rage"]):
-        return "angry"
-    if any(k in t for k in ["chill","calm","lofi","relax"]):
-        return "chill"
-    if any(k in t for k in ["happy","good mood","feel good"]):
+    """
+    Use Gemini API to classify user prompt into one of 8 predefined moods.
+    Returns one of: sad, angry, happy, hype, romantic, chill, focus, live
+    """
+    if not text or not text.strip():
         return "happy"
-    return "happy"
+
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+
+        prompt = f"""
+Analyze the following user input and classify it into EXACTLY ONE of these 8 moods:
+- sad: melancholy, heartbreak, depression, crying, loss
+- angry: rage, frustration, mad, furious, upset
+- happy: joyful, cheerful, upbeat, positive, good mood
+- hype: energetic, pump up, workout, competitive, intense, excited
+- romantic: love, date, intimate, passionate, couple time
+- chill: relaxed, calm, laid-back, lofi, peaceful, easy-going
+- focus: study, concentrate, work, productivity, deep work
+- live: party, celebration, social, dancing, going out
+
+User input: "{text}"
+
+Respond with ONLY the mood word (sad, angry, happy, hype, romantic, chill, focus, or live). No explanation needed.
+"""
+
+        response = model.generate_content(prompt)
+        detected_mood = response.text.strip().lower()
+
+        # Validate the response is one of our predefined moods
+        valid_moods = ["sad", "angry", "happy", "hype", "romantic", "chill", "focus", "live"]
+        if detected_mood in valid_moods:
+            return detected_mood
+        else:
+            # Fallback if Gemini returns something unexpected
+            return "happy"
+
+    except Exception as e:
+        print(f"[WARN] Gemini API error: {e}")
+        # Fallback to simple keyword matching if API fails
+        t = (text or "").lower()
+        if any(k in t for k in ["heartbroken","broken","broke up","break up","breakup","cry","tears","depressed","sad"]):
+            return "sad"
+        if any(k in t for k in ["gym","hype","pump","workout","competitive","match"]):
+            return "hype"
+        if any(k in t for k in ["romantic","date","love"]):
+            return "romantic"
+        if any(k in t for k in ["study","focus","concentrate"]):
+            return "focus"
+        if any(k in t for k in ["angry","rage"]):
+            return "angry"
+        if any(k in t for k in ["chill","calm","lofi","relax"]):
+            return "chill"
+        if any(k in t for k in ["party","celebration","dancing","going out"]):
+            return "live"
+        if any(k in t for k in ["happy","good mood","feel good"]):
+            return "happy"
+        return "happy"
 
 def rank_candidates_with_rf(candidates: pd.DataFrame, target_mood: str, top_k: int = 20) -> pd.DataFrame:
     if not has_model():
