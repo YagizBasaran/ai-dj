@@ -37,6 +37,9 @@ How to Get Free YouTube API Key:
 - Enable "YouTube Data API v3"
 - Create credentials (API key)
 
+How to Get Free Google Gemini API Key:
+- https://aistudio.google.com/app/api-keys
+
 # 3. ML Model
 
 ## 3.1. Random Forest + No LLM (16.08.2025)
