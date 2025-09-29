@@ -12,7 +12,7 @@ cd ai-dj
 
 ## 2.1. Development (Instant Reload)
 
-- Download Docker to your computer and open it.
+- Download Docker to your computer and open it. Then from your terminal (Git Bash prefered), run the command below in the project folder.
 
 ```bash 
 docker compose up --build dev
@@ -28,10 +28,9 @@ docker compose up --build web
 - For code changes: ```docker compose up --build web``` again because no auto-refresh here (Gunicorn)
 
 ## 2.3. Extra Files
-- Add .env file and put your Gemini key as GOOGLE_API_KEY= "... and "YOUTUBE_API_KEY="..." for generating the Youtube Api key follow these steps:
+- Add .env file and put your Gemini key as GOOGLE_API_KEY= "..." and "YOUTUBE_API_KEY="..." for generating the Youtube Api key follow these steps:
 
 How to Get Free YouTube API Key:
-
 - Go to Google Cloud Console
 - Create a new project or select existing
 - Enable "YouTube Data API v3"
@@ -49,6 +48,14 @@ How to Get Free Google Gemini API Key:
 
 ### 3.1.1 Random Forest v2 + No LLM (10.09.2025) at understaning the user prompt
 1. Serhat's Gemini algorithm could be used.
-2. Might require better labeling at the model (google colab ipynb file)
+2. Might require better labeling at the model (Google Colab .ipynb file)
 3. Creates scores (%95 ML model + %5 popularity)
 - To test this version go to `http://localhost:5000/ml-test` after running dev version.
+
+## 3.2 Random Forest + Gemini 2.5 Flash LLM (30.09.2025)
+1. Gemini now understands the prompt and decides a mood.
+2. RM model still can be improved.
+3. Direct search added (artist, song or album name)
+4. Previous updates also added multi search (Discovery vs Mainstream)
+- To test this version go to `http://localhost:5000/ml-test` after running dev version.
+
