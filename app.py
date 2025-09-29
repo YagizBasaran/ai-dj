@@ -181,7 +181,7 @@ def ml_test():
         
         # Use the new function with preference
         from ml_core import recommend_by_mood_with_preference
-        recs = recommend_by_mood_with_preference(detected_mood, preference, top_k=10)
+        recs = recommend_by_mood_with_preference(detected_mood, preference, top_k=10, user_query=prompt)
 
     return render_template(
         "ml_test.html",

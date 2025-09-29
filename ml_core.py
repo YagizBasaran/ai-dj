@@ -6,6 +6,9 @@ import pandas as pd
 from typing import Optional
 import google.generativeai as genai
 
+import re  # For improved direct search
+from typing import Optional, List, Dict #direct search imports
+
 # ---------- Module-level state ----------
 _ARTIFACTS_DIR = None
 _rf_bundle = None          # {"model": RandomForestClassifier, "scaler": StandardScaler}
@@ -127,7 +130,7 @@ def mood_from_prompt(text: str) -> str:
         return "happy"
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
 
         prompt = f"""
 Analyze the following user input and classify it into EXACTLY ONE of these 8 moods:
@@ -154,7 +157,7 @@ Respond with ONLY the mood word (sad, angry, happy, hype, romantic, chill, focus
             return detected_mood
         else:
             # Fallback if Gemini returns something unexpected
-            return "happy"
+            return "other unexpected" #again gemini errored unexpectedly
 
     except Exception as e:
         print(f"[WARN] Gemini API error: {e}")
@@ -176,7 +179,7 @@ Respond with ONLY the mood word (sad, angry, happy, hype, romantic, chill, focus
             return "live"
         if any(k in t for k in ["happy","good mood","feel good"]):
             return "happy"
-        return "happy"
+        return "other" #Other means gemini errored and no keywords matched
 
 def rank_candidates_with_rf(candidates: pd.DataFrame, target_mood: str, top_k: int = 20) -> pd.DataFrame:
     if not has_model():
@@ -214,7 +217,7 @@ def rank_candidates_with_rf(candidates: pd.DataFrame, target_mood: str, top_k: i
     df = _diversify_by_artist(df, artist_col="track_artist", top_k=top_k, per_artist_cap=2)
     return df.head(top_k)
 
-#CLASSIC FIRST VERSION
+#CLASSIC FIRST VERSION, !!!!UNUSED!!!!
 def recommend_by_mood(mood: str, top_k: int = 20):
     if _tracks_df is None or len(_tracks_df) == 0:
         return []
@@ -232,24 +235,186 @@ def recommend_by_mood(mood: str, top_k: int = 20):
             cols.append(extra)
     return ranked[cols].to_dict(orient="records")
 
-
-#Experimental new one 7/3 ratio
-def recommend_by_mood_with_preference(mood: str, preference: str = "balanced", top_k: int = 10):
+# ---------- NEW: Direct Search Function ---------- Comes before emotion based search
+def search_direct_matches(query: str, top_k: int = 2) -> List[Dict]:
     """
-    Recommend songs with Discovery/Classic preference
-    preference: "discovery", "mainstream", or "balanced"
+    Searches for direct matches in track name, artist name, or album name.
+    Uses word tokenization for better natural language matching.
+    """
+    print(f"\n=== DIRECT SEARCH DEBUG ===")
+    print(f"Query received: '{query}'")
+    print(f"Tracks available: {len(_tracks_df) if _tracks_df is not None else 0}")
+    
+    if _tracks_df is None or len(_tracks_df) == 0:
+        print("No tracks loaded!")
+        return []
+    
+    if not query or not query.strip():
+        print("Empty query!")
+        return []
+    
+    query_lower = query.strip().lower()
+    query_lower = re.sub(r'[^\w\s]', '', query_lower)
+    
+    # Extract meaningful words (ignore common stop words)
+    stop_words = {'i', 'am', 'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
+                  'of', 'with', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had',
+                  'do', 'does', 'did', 'will', 'would', 'should', 'could', 'may', 'might',
+                  'so', 'very', 'really', 'just', 'feel', 'feeling', 'want', 'like'}
+    
+    # Split into words and filter
+    words = [w.strip() for w in query_lower.split() if len(w.strip()) > 2]
+    meaningful_words = [w for w in words if w not in stop_words]
+    
+    # If no meaningful words, try the full query
+    if not meaningful_words:
+        search_queries = [query_lower]
+    else:
+        # Try combinations: full phrase, then individual meaningful words
+        search_queries = [query_lower] + meaningful_words
+    
+    print(f"Search queries: {search_queries}")
+    
+    # Make a copy to work with
+    df = _tracks_df.copy()
+    
+    # Create searchable columns
+    df['track_name_lower'] = df['track_name'].fillna('').astype(str).str.lower().apply(lambda x: re.sub(r'[^\w\s]', '', x))
+    df['track_artist_lower'] = df['track_artist'].fillna('').astype(str).str.lower().apply(lambda x: re.sub(r'[^\w\s]', '', x))
+    df['track_album_name_lower'] = df.get('track_album_name', pd.Series([''] * len(df))).fillna('').astype(str).str.lower().apply(lambda x: re.sub(r'[^\w\s]', '', x))
+    
+    # Score function that handles multiple search terms
+    def calculate_combined_score(text: str, queries: list) -> float:
+        if not text:
+            return 0.0
+        
+        max_score = 0.0
+        
+        # First, try the full original query (highest priority)
+        full_query = queries[0] if queries else ""
+        if full_query and full_query in text:
+            # Bonus for full phrase match
+            if text == full_query:
+                return 100.0
+            elif text.startswith(full_query):
+                return 80.0
+            else:
+                max_score = 50.0
+        
+        # Then try individual words, but score based on HOW MANY words match
+        if len(queries) > 1:
+            individual_words = queries[1:]  # Skip the full query
+            words_matched = sum(1 for word in individual_words if word in text)
+            total_words = len(individual_words)
+            
+            if words_matched > 0:
+                # Score based on percentage of words matched
+                # If all words match: 60 points, if half match: 30 points
+                word_score = 60.0 * (words_matched / total_words)
+                
+                # Bonus if multiple words match (not just one)
+                if words_matched >= 2:
+                    word_score += 20.0
+                
+                max_score = max(max_score, word_score)
+        
+        return max_score
+    
+    # Score each row
+    df['name_score'] = df['track_name_lower'].apply(lambda x: calculate_combined_score(x, search_queries))
+    df['artist_score'] = df['track_artist_lower'].apply(lambda x: calculate_combined_score(x, search_queries))
+    df['album_score'] = df['track_album_name_lower'].apply(lambda x: calculate_combined_score(x, search_queries))
+    
+    # Combine scores (prioritize track name > artist > album)
+    df['match_score'] = (
+        df['name_score'] * 2.0 +
+        df['artist_score'] * 1.5 +
+        df['album_score'] * 1.0
+    )
+    
+    # Filter to only matches
+    matches = df[df['match_score'] > 0].copy()
+    print(f"Found {len(matches)} potential matches")
+    
+    if len(matches) == 0:
+        print("No matches found!")
+        return []
+    
+    # Show top matches for debugging
+    print(f"Top 5 matches:")
+    for idx, row in matches.head(5).iterrows():
+        print(f"  - {row['track_name']} by {row['track_artist']} (score: {row['match_score']:.1f})")
+    
+    # Add popularity bonus
+    if 'track_popularity' in matches.columns:
+        pop_normalized = _normalize_0_1(matches['track_popularity'].fillna(0))
+        matches['final_score'] = matches['match_score'] + (pop_normalized * 5.0)
+    else:
+        matches['final_score'] = matches['match_score']
+    
+    # Sort and deduplicate
+    matches = matches.sort_values('final_score', ascending=False)
+    matches = matches.drop_duplicates(subset=['track_name', 'track_artist'], keep='first')
+    
+    # Get top_k results
+    top_matches = matches.head(top_k)
+    print(f"Returning {len(top_matches)} results")
+    
+    # Format output
+    cols = ['track_name', 'track_artist', 'mood', 'track_popularity']
+    if 'track_album_name' in top_matches.columns:
+        cols.append('track_album_name')
+    for extra in ['match_score', 'final_score']:
+        if extra in top_matches.columns:
+            cols.append(extra)
+    
+    available_cols = [c for c in cols if c in top_matches.columns]
+    results = top_matches[available_cols].to_dict(orient='records')
+    
+    for r in results:
+        r['is_direct_match'] = True
+    
+    print(f"=== END DIRECT SEARCH DEBUG ===\n")
+    return results
+
+#Current new one 7/3 ratio for popularity preference
+#Current new one 7/3 ratio for popularity preference + DIRECT SEARCH
+def recommend_by_mood_with_preference(mood: str, preference: str = "balanced", top_k: int = 10, user_query: str = ""):
+    """
+    Recommend songs with Discovery/Classic preference + Direct Search matches
+    
+    Args:
+        mood: detected mood
+        preference: "discovery", "mainstream", or "balanced"
+        top_k: number of mood-based recommendations (default 10)
+        user_query: original user input for direct search
+    
+    Returns:
+        List with up to 2 direct matches at top + 10 mood-based recommendations
     """
     if _tracks_df is None or len(_tracks_df) == 0:
         return []
-
-    # Get a larger pool for better selection
+    
+    # 1. FIRST: Get direct matches (if query provided)
+    direct_matches = []
+    if user_query and user_query.strip():
+        direct_matches = search_direct_matches(user_query, top_k=2)
+        print(f"[DEBUG] Found {len(direct_matches)} direct matches for query: '{user_query}'")
+    
+    # 2. SECOND: Get mood-based recommendations
     pool = _tracks_df
     ranked = rank_candidates_with_rf(pool, target_mood=mood, top_k=50)  # Get more candidates
     
-    if len(ranked) == 0:
-        return []
+    # If we have direct matches, exclude them from mood-based results to avoid duplicates
+    if direct_matches:
+        direct_track_ids = [(m['track_name'], m['track_artist']) for m in direct_matches]
+        ranked = ranked[~ranked[['track_name', 'track_artist']].apply(tuple, axis=1).isin(direct_track_ids)]
     
-    # Define popularity threshold (you can adjust this)
+    if len(ranked) == 0:
+        # If no mood matches, just return direct matches
+        return direct_matches
+    
+    # Define popularity threshold
     popularity_threshold = ranked["track_popularity"].median()
     
     # Split into popular and non-popular
@@ -261,22 +426,26 @@ def recommend_by_mood_with_preference(mood: str, preference: str = "balanced", t
     non_popular_songs = non_popular_songs.sample(frac=1, random_state=None).reset_index(drop=True)
     
     # Apply preference logic
+    mood_based_results = []
     if preference == "discovery":
         # 7 non-popular + 3 popular
-        selected = []
-        selected.extend(non_popular_songs.head(7).to_dict(orient="records"))
-        selected.extend(popular_songs.head(3).to_dict(orient="records"))
+        mood_based_results.extend(non_popular_songs.head(7).to_dict(orient="records"))
+        mood_based_results.extend(popular_songs.head(3).to_dict(orient="records"))
     elif preference == "mainstream":
         # 7 popular + 3 non-popular  
-        selected = []
-        selected.extend(popular_songs.head(7).to_dict(orient="records"))
-        selected.extend(non_popular_songs.head(3).to_dict(orient="records"))
+        mood_based_results.extend(popular_songs.head(7).to_dict(orient="records"))
+        mood_based_results.extend(non_popular_songs.head(3).to_dict(orient="records"))
     else:  # balanced
-        # Original behavior
-        selected = ranked.head(top_k).to_dict(orient="records")
+        mood_based_results = ranked.head(top_k).to_dict(orient="records")
     
-    # Return only the requested number
-    return selected[:top_k]
+    # Limit to top_k
+    mood_based_results = mood_based_results[:top_k]
+    
+    # 3. COMBINE: Direct matches at top + mood-based below
+    final_results = direct_matches + mood_based_results
+    
+    print(f"[DEBUG] Returning {len(direct_matches)} direct + {len(mood_based_results)} mood = {len(final_results)} total")
+    return final_results
 
 # print(">>> ARTIFACTS DIR:", _ARTIFACTS_DIR)
 # print(">>> MODEL PATH EXISTS:", (Path(_ARTIFACTS_DIR) / "model.pkl").exists())

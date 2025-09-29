@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>ML Test — Prompt → Top 10</title>
+    <title>ML Test – Prompt → Top 10</title>
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <style>
       :root { --fg:#111; --muted:#666; --border:#eee; --bg:#fff; }
@@ -44,11 +44,79 @@
       .mode-pill.discovery { background: #dbeafe; color: #1e40af; border-color: #3b82f6; }
       .mode-pill.mainstream { background: #fed7aa; color: #c2410c; border-color: #f97316; }
       .mode-pill.balanced { background: #d1fae5; color: #047857; border-color: #10b981; }
-      table { width: 100%; border-collapse: collapse; }
+      
+      /* Direct Match Styles */
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 24px 0 12px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid var(--border);
+      }
+      .section-header h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--fg);
+      }
+      .section-badge {
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .section-badge.direct {
+        background: #fef3c7;
+        color: #92400e;
+        border: 1px solid #fbbf24;
+      }
+      .section-badge.mood {
+        background: #e0e7ff;
+        color: #3730a3;
+        border: 1px solid #818cf8;
+      }
+      
+      table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
       th, td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
       th { background:#fafafa; }
+      
+      /* Highlight direct match rows */
+      tr.direct-match {
+        background: #fffbeb;
+        border-left: 3px solid #fbbf24;
+      }
+      tr.direct-match td:first-child {
+        padding-left: 7px; /* Compensate for border */
+      }
+      .direct-match-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        background: #fbbf24;
+        color: white;
+        font-size: 10px;
+        font-weight: 600;
+        margin-left: 4px;
+        vertical-align: middle;
+      }
+      
       .empty { color: var(--muted); margin-top: 12px; }
       .footer { color: var(--muted); font-size: 12px; margin-top: 24px; }
+      
+      /* Match score indicator */
+      .match-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 4px;
+        vertical-align: middle;
+      }
+      .match-indicator.exact { background: #10b981; }
+      .match-indicator.partial { background: #fbbf24; }
     </style>
   </head>
   <body>
@@ -71,11 +139,11 @@
         </div>
       </div>
 
-      <div class="hint">Type how you feel (e.g., "broke up with my valentine", "gym pump session", "study focus").</div>
+      <div class="hint">Type how you feel (e.g., "broke up with my valentine", "gym pump session", "study focus") or search directly (e.g., "Kendrick Lamar", "Lovesong").</div>
 
       <form method="POST" action="/ml-test" id="recommendForm">
         <input type="hidden" name="preference" id="preferenceInput" value="{{ preference or 'discovery' }}" />
-        <input type="text" name="prompt" placeholder="how do you feel?" value="{{ prompt|e }}" />
+        <input type="text" name="prompt" placeholder="how do you feel or what do you want to listen?" value="{{ prompt|e }}" />
         <button type="submit">Recommend</button>
       </form>
 
@@ -88,37 +156,84 @@
       {% endif %}
 
       {% if recs and recs|length > 0 %}
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Track</th>
-              <th>Artist</th>
-              <th>Mood</th>
-              <th>Popularity</th>
-              <th>ML score</th>       
-              <th>Final score</th>      
-            </tr>
-          </thead>
-          <tbody>
-            {% for r in recs %}
+        {% set direct_matches = recs | selectattr('is_direct_match', 'defined') | selectattr('is_direct_match', 'equalto', True) | list %}
+        {% set mood_matches = recs | rejectattr('is_direct_match', 'defined') | list %}
+        
+        {# Show direct matches first if they exist #}
+        {% if direct_matches|length > 0 %}
+          <div class="section-header">
+            <h3>Direct Matches</h3>
+            <span class="section-badge direct">{{ direct_matches|length }} found</span>
+          </div>
+          <table>
+            <thead>
               <tr>
-                <td>{{ loop.index }}</td>
-                <td>{{ r.track_name }}</td>
-                <td>{{ r.track_artist }}</td>
-                <td>{{ r.mood }}</td>
-                <td>{{ r.track_popularity }}</td>
-                <td>{{ '%.3f'|format(r.ml_score|default(0)) }}</td>
-                <td>{{ '%.3f'|format(r.final_score|default(0)) }}</td>
+                <th>Track</th>
+                <th>Artist</th>
+                <th>Mood</th>
+                <th>Popularity</th>
+                <th>Match Score</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for r in direct_matches %}
+                <tr class="direct-match">
+                  <td>
+                    <span class="match-indicator {% if r.match_score|default(0) >= 100 %}exact{% else %}partial{% endif %}"></span>
+                    {{ r.track_name }}
+                    <span class="direct-match-badge">DIRECT</span>
+                  </td>
+                  <td>{{ r.track_artist }}</td>
+                  <td>{{ r.mood }}</td>
+                  <td>{{ r.track_popularity }}</td>
+                  <td>{{ '%.1f'|format(r.match_score|default(0)) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
+        
+        {# Show mood-based recommendations #}
+        {% if mood_matches|length > 0 %}
+          <div class="section-header">
+            <h3>Mood-Based Recommendations</h3>
+            <span class="section-badge mood">{{ mood_matches|length }} tracks</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Track</th>
+                <th>Artist</th>
+                <th>Mood</th>
+                <th>Popularity</th>
+                <th>ML score</th>       
+                <th>Final score</th>      
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in mood_matches %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>{{ r.track_name }}</td>
+                  <td>{{ r.track_artist }}</td>
+                  <td>{{ r.mood }}</td>
+                  <td>{{ r.track_popularity }}</td>
+                  <td>{{ '%.3f'|format(r.ml_score|default(0)) }}</td>
+                  <td>{{ '%.3f'|format(r.final_score|default(0)) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
       {% elif detected_mood %}
-        <div class="empty">No results for this mood — try another prompt.</div>
+        <div class="empty">No results for this mood – try another prompt.</div>
       {% endif %}
 
-      <div class="footer">This view calls your server-side recommender and shows mood-based recommendations with your selected preference.</div>
+      <div class="footer">
+        <strong>How it works:</strong> Type your query and get up to 2 direct matches (song/artist/album) at the top, 
+        followed by 10 mood-based recommendations. Direct matches are independent of Discovery/Mainstream/Balanced modes.
+      </div>
     </div>
 
     <script>
