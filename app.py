@@ -1,11 +1,3 @@
-# @app.get("/health")
-# def health():
-#     return {"ok": True}
-
-# @app.get("/")
-# def home():
-#     return render_template("intro.html")
-
 import os, json
 from flask import Flask, render_template, request, jsonify
 import requests
