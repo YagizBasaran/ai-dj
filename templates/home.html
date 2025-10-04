@@ -2,13 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI DJ - Home</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        html, body {
+            overscroll-behavior-y: none;
+            -webkit-overflow-scrolling: touch;
         }
 
         body {
@@ -45,6 +50,46 @@
             text-align: center;
         }
 
+        .mode-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .mode-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: white;
+        }
+
+        .mode-button.discovery {
+            background: #3b82f6;
+        }
+
+        .mode-button.mainstream {
+            background: #f97316;
+        }
+
+        .mode-button.balanced {
+            background: #10b981;
+        }
+
+        .mode-button.active {
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+
+        .mode-button:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+
         .input-container {
             position: relative;
             max-width: 600px;
@@ -66,6 +111,7 @@
         #userInput::placeholder {
             color: #666;
         }
+
 
         .submit-btn {
             position: absolute;
@@ -151,6 +197,40 @@
             cursor: pointer;
             transition: all 0.3s ease;
             border: 2px solid transparent;
+            position: relative;
+        }
+
+        .result-card.direct-match {
+            border: 2px solid #fbbf24;
+            background: rgba(251, 191, 36, 0.2);
+        }
+
+        .match-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #fbbf24;
+            color: #92400e;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .section-title {
+            margin: 2rem 0 1rem;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.9rem;
         }
 
         .result-card:hover {
@@ -211,11 +291,22 @@
 
     <div class="main-container">
         <div class="input-section">
+            <div class="mode-buttons">
+                <button class="mode-button discovery" data-preference="discovery" onclick="setPreference('discovery')">
+                    Discovery
+                </button>
+                <button class="mode-button mainstream" data-preference="mainstream" onclick="setPreference('mainstream')">
+                    Mainstream
+                </button>
+                <button class="mode-button balanced active" data-preference="balanced" onclick="setPreference('balanced')">
+                    Balanced
+                </button>
+            </div>
             <div class="input-container">
-                <input 
-                    type="text" 
-                    id="userInput" 
-                    placeholder="e.g., 'I'm feeling nostalgic and want some 90s hits' or 'Play something energetic for my workout'"
+                <input
+                    type="text"
+                    id="userInput"
+                    placeholder="e.g. Feeling tired hype me up, Kendrick Lamar, ..."
                 >
                 <button class="submit-btn" onclick="processRequest()">🎵</button>
             </div>
@@ -252,12 +343,38 @@
     </div>
 
     <script>
+        let currentPreference = 'balanced';
+
+        // Update placeholder based on screen width
+        function updatePlaceholder() {
+            const input = document.getElementById('userInput');
+            if (window.innerWidth <= 768) {
+                input.placeholder = "Search music, artist or mood...";
+            } else {
+                input.placeholder = "e.g. Feeling tired hype me up, Kendrick Lamar and more...";
+            }
+        }
+
+        // Update on load and resize
+        updatePlaceholder();
+        window.addEventListener('resize', updatePlaceholder);
+
         // Allow Enter key to submit
         document.getElementById('userInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 processRequest();
             }
         });
+
+        function setPreference(pref) {
+            currentPreference = pref;
+
+            // Update button states
+            document.querySelectorAll('.mode-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`.mode-button.${pref}`).classList.add('active');
+        }
 
         function fillExample(text) {
             document.getElementById('userInput').value = text;
@@ -277,7 +394,10 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ input: input })
+                    body: JSON.stringify({
+                        input: input,
+                        preference: currentPreference
+                    })
                 });
 
                 const data = await response.json();
@@ -296,65 +416,98 @@
         }
 
         function displayResults(data) {
-            // Show mood
+            // Show mood and preference
             const moodDisplay = document.getElementById('moodDisplay');
             moodDisplay.innerHTML = `
                 <h3>🎯 Detected Mood: ${data.mood}</h3>
-                <p>Confidence: ${Math.round(data.confidence * 100)}%</p>
+                <p>Mode: ${data.preference.charAt(0).toUpperCase() + data.preference.slice(1)} |
+                   Direct Matches: ${data.direct_matches_count} |
+                   Mood Recommendations: ${data.mood_matches_count}</p>
             `;
 
             // Show top match player
             const currentPlayer = document.getElementById('currentPlayer');
             if (data.top_match) {
+                const isDirect = data.top_match.source === 'direct_match';
                 currentPlayer.innerHTML = `
                     <h3>🎵 Now Playing: ${data.top_match.title}</h3>
-                    <iframe 
+                    ${isDirect ? '<span style="background: #fbbf24; color: #92400e; padding: 4px 10px; border-radius: 5px; font-size: 0.8rem; font-weight: 700;">DIRECT MATCH</span>' : ''}
+                    <iframe
                         class="youtube-player"
-                        src="https://www.youtube.com/embed/${data.top_match.id}?autoplay=1" 
-                        frameborder="0" 
-                        allow="autoplay; encrypted-media" 
+                        src="https://www.youtube.com/embed/${data.top_match.id}?autoplay=1"
+                        frameborder="0"
+                        allow="autoplay; encrypted-media"
                         allowfullscreen>
                     </iframe>
                     <p style="margin-top: 1rem;"><strong>Channel:</strong> ${data.top_match.channel}</p>
                 `;
             }
 
-            // Show all results
+            // Show all results organized by type
             const resultsGrid = document.getElementById('resultsGrid');
-            resultsGrid.innerHTML = '<h3>🎼 Other Recommendations:</h3>';
-            
-            data.results.slice(1).forEach(result => {
-                const card = document.createElement('div');
-                card.className = 'result-card';
-                card.onclick = () => playVideo(result.id, result.title, result.channel);
-                
-                card.innerHTML = `
-                    <img src="${result.thumbnail}" alt="${result.title}">
-                    <h4>${result.title}</h4>
-                    <p>${result.description}</p>
-                    <div class="channel-name">${result.channel}</div>
-                `;
-                
-                resultsGrid.appendChild(card);
-            });
+            resultsGrid.innerHTML = '';
+
+            const directMatches = data.results.filter(r => r.source === 'direct_match').slice(1);
+            const moodMatches = data.results.filter(r => r.source === 'mood_match');
+
+            // Show direct matches section
+            if (directMatches.length > 0) {
+                const directSection = document.createElement('div');
+                directSection.innerHTML = '<div class="section-title">⭐ Direct Matches <span class="section-badge">' + directMatches.length + '</span></div>';
+                resultsGrid.appendChild(directSection);
+
+                directMatches.forEach(result => {
+                    const card = createResultCard(result, true);
+                    resultsGrid.appendChild(card);
+                });
+            }
+
+            // Show mood matches section
+            if (moodMatches.length > 0) {
+                const moodSection = document.createElement('div');
+                moodSection.innerHTML = '<div class="section-title">🎼 Mood-Based Recommendations <span class="section-badge">' + moodMatches.length + '</span></div>';
+                resultsGrid.appendChild(moodSection);
+
+                moodMatches.forEach(result => {
+                    const card = createResultCard(result, false);
+                    resultsGrid.appendChild(card);
+                });
+            }
 
             document.getElementById('results').style.display = 'block';
         }
 
-        function playVideo(videoId, title, channel) {
+        function createResultCard(result, isDirect) {
+            const card = document.createElement('div');
+            card.className = 'result-card' + (isDirect ? ' direct-match' : '');
+            card.onclick = () => playVideo(result.id, result.title, result.channel, isDirect);
+
+            card.innerHTML = `
+                ${isDirect ? '<span class="match-badge">DIRECT</span>' : ''}
+                <img src="${result.thumbnail}" alt="${result.title}">
+                <h4>${result.title}</h4>
+                <p>${result.description}</p>
+                <div class="channel-name">${result.channel}</div>
+            `;
+
+            return card;
+        }
+
+        function playVideo(videoId, title, channel, isDirect = false) {
             const currentPlayer = document.getElementById('currentPlayer');
             currentPlayer.innerHTML = `
                 <h3>🎵 Now Playing: ${title}</h3>
-                <iframe 
+                ${isDirect ? '<span style="background: #fbbf24; color: #92400e; padding: 4px 10px; border-radius: 5px; font-size: 0.8rem; font-weight: 700;">DIRECT MATCH</span>' : ''}
+                <iframe
                     class="youtube-player"
-                    src="https://www.youtube.com/embed/${videoId}?autoplay=1" 
-                    frameborder="0" 
-                    allow="autoplay; encrypted-media" 
+                    src="https://www.youtube.com/embed/${videoId}?autoplay=1"
+                    frameborder="0"
+                    allow="autoplay; encrypted-media"
                     allowfullscreen>
                 </iframe>
                 <p style="margin-top: 1rem;"><strong>Channel:</strong> ${channel}</p>
             `;
-            
+
             // Scroll to player
             currentPlayer.scrollIntoView({ behavior: 'smooth' });
         }

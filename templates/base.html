@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>{% block title %}AI DJ{% endblock %}</title>
     <style>
         * {
@@ -11,11 +11,16 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            overscroll-behavior-y: none;
+            -webkit-overflow-scrolling: touch;
+        }
+
         html {
             scrollbar-width: none;
             -ms-overflow-style: none;
         }
-        
+
         html::-webkit-scrollbar {
             display: none;
         }
@@ -30,7 +35,7 @@
             scrollbar-width: none;
             -ms-overflow-style: none;
         }
-        
+
         body::-webkit-scrollbar {
             display: none;
         }

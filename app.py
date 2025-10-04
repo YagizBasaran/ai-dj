@@ -1,94 +1,88 @@
-import os, json
+"""
+AI DJ - Flask Application
+Music recommendation system using ML-based mood detection and YouTube integration
+"""
+
+import os
+from pathlib import Path
 from flask import Flask, render_template, request, jsonify
 import requests
-import pandas as pd
-from pathlib import Path
-import numpy as np
 
 from ml_core import (
     load_artifacts,
     mood_from_prompt,
-    recommend_by_mood,
+    recommend_by_mood_with_preference,
     has_model,
     tracks_df,
-    numeric_features
+    numeric_features,
+    _rf_bundle
 )
 
+# ============================================================================
+# APPLICATION SETUP
+# ============================================================================
+
 app = Flask(__name__)
-
-# Debug file system BEFORE loading
-print(f"=== FILE SYSTEM DEBUG ===")
-print(f"Current working directory: {os.getcwd()}")
-
-shared_path = Path("artifacts/shared")
-model_path = Path("artifacts/models/v2/model.pkl")
-
-print(f"Shared path exists: {shared_path.exists()}")
-print(f"Model path exists: {model_path.exists()}")
-
-if shared_path.exists():
-    print(f"Contents of shared/: {os.listdir(shared_path)}")
-
-models_path = Path("artifacts/models")
-if models_path.exists():
-    print(f"Contents of models/: {os.listdir(models_path)}")
-    v2_path = models_path / "v2"
-    if v2_path.exists():
-        print(f"Contents of models/v2/: {os.listdir(v2_path)}")
-
-print(f"=== END FILE SYSTEM DEBUG ===")
-
-# NOW load the artifacts
-load_artifacts()  # This was missing!
-
-# Debug loading results
-print(f"=== LOADING DEBUG ===")
-print(f"Model loaded: {has_model()}")
-print(f"Tracks loaded: {len(tracks_df()) if tracks_df() is not None else 'None'}")
-print(f"Features: {numeric_features()}")
-
-if has_model():
-    from ml_core import _rf_bundle
-    model = _rf_bundle["model"]
-    print(f"Model classes: {list(model.classes_)}")
-print(f"=== END LOADING DEBUG ===")
-
-# You'll need to get a free YouTube Data API key from Google Cloud Console
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
+# ============================================================================
+# INITIALIZATION & DEBUG
+# ============================================================================
 
-#Serhat:
-# Mock ML processing function (replace with your actual ML later)
-def process_user_input(user_input):
-    """
-    This is where ML algorithms will go later.
-    For now, it returns mock results based on keywords.
-    """
-    user_input = user_input.lower()
-    
-    # Simple keyword-based mock processing
-    if any(word in user_input for word in ['sad', 'depressed', 'broken', 'heartbreak']):
-        mood = "sad"
-        search_terms = ["sad songs", "emotional ballads", "heartbreak music"]
-    elif any(word in user_input for word in ['happy', 'energetic', 'pump', 'workout', 'competitive']):
-        mood = "energetic"
-        search_terms = ["upbeat music", "workout songs", "motivational music"]
-    elif any(word in user_input for word in ['chill', 'relax', 'calm', 'study']):
-        mood = "chill"
-        search_terms = ["chill music", "lo-fi beats", "relaxing songs"]
-    else:
-        mood = "general"
-        search_terms = [user_input, "popular music"]
-    
-    return {
-        'mood': mood,
-        'search_terms': search_terms,
-        'confidence': 0.85
-    }
+def debug_file_system():
+    """Debug file system to verify artifact paths"""
+    print(f"\n=== FILE SYSTEM DEBUG ===")
+    print(f"Current working directory: {os.getcwd()}")
+
+    shared_path = Path("artifacts/shared")
+    model_path = Path("artifacts/models/v2/model.pkl")
+
+    print(f"Shared path exists: {shared_path.exists()}")
+    print(f"Model path exists: {model_path.exists()}")
+
+    if shared_path.exists():
+        print(f"Contents of shared/: {os.listdir(shared_path)}")
+
+    models_path = Path("artifacts/models")
+    if models_path.exists():
+        print(f"Contents of models/: {os.listdir(models_path)}")
+        v2_path = models_path / "v2"
+        if v2_path.exists():
+            print(f"Contents of models/v2/: {os.listdir(v2_path)}")
+
+    print(f"=== END FILE SYSTEM DEBUG ===\n")
+
+def debug_loaded_artifacts():
+    """Debug loaded ML artifacts"""
+    print(f"\n=== LOADING DEBUG ===")
+    print(f"Model loaded: {has_model()}")
+    print(f"Tracks loaded: {len(tracks_df()) if tracks_df() is not None else 'None'}")
+    print(f"Features: {numeric_features()}")
+
+    if has_model() and _rf_bundle is not None:
+        model = _rf_bundle["model"]
+        print(f"Model classes: {list(model.classes_)}")
+    print(f"=== END LOADING DEBUG ===\n")
+
+debug_file_system()
+load_artifacts()
+debug_loaded_artifacts()
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
 
 def search_youtube_music(query, max_results=5):
     """
-    Search for music videos on YouTube
+    Search for music videos on YouTube using the YouTube Data API
+
+    Args:
+        query: Search query string
+        max_results: Maximum number of results to return (default: 5)
+
+    Returns:
+        List of dictionaries containing video information
     """
     try:
         url = "https://www.googleapis.com/youtube/v3/search"
@@ -101,10 +95,10 @@ def search_youtube_music(query, max_results=5):
             'videoCategoryId': '10',  # Music category
             'order': 'relevance'
         }
-        
+
         response = requests.get(url, params=params)
         data = response.json()
-        
+
         results = []
         if 'items' in data:
             for item in data['items']:
@@ -115,73 +109,108 @@ def search_youtube_music(query, max_results=5):
                     'thumbnail': item['snippet']['thumbnails']['medium']['url'],
                     'channel': item['snippet']['channelTitle']
                 })
-        
+
         return results
     except Exception as e:
         print(f"YouTube API Error: {e}")
         return []
 
-# Routes for explanatory pages
+# ============================================================================
+# ROUTES - Pages
+# ============================================================================
+
 @app.route('/')
 def intro_page():
+    """Landing page with app introduction"""
     return render_template('intro.html')
 
 @app.route('/home')
 def home():
+    """Main AI DJ interface"""
     return render_template('home.html')
+
+# ============================================================================
+# ROUTES - API Endpoints
+# ============================================================================
 
 @app.route('/process_request', methods=['POST'])
 def process_request():
+    """
+    Main API endpoint for processing user music requests
+    Returns YouTube videos based on mood detection and ML recommendations
+    """
     try:
+        # Extract request data
         user_input = request.json.get('input', '')
-        
+        preference = request.json.get('preference', 'balanced')
+
         if not user_input:
             return jsonify({'error': 'No input provided'}), 400
-        
-        # Process with mock ML (replace with your actual ML later)
-        ml_result = process_user_input(user_input)
-        
-        # Search for music based on ML result
+
+        detected_mood = mood_from_prompt(user_input)
+        recs = recommend_by_mood_with_preference(
+            detected_mood,
+            preference,
+            top_k=10,
+            user_query=user_input
+        )
+
+        direct_matches = [r for r in recs if r.get('is_direct_match', False)]
+        mood_matches = [r for r in recs if not r.get('is_direct_match', False)]
+
         all_results = []
-        for search_term in ml_result['search_terms'][:2]:  # Limit API calls
-            results = search_youtube_music(search_term, 3)
-            all_results.extend(results)
-        
-        # Remove duplicates and limit results
-        seen_ids = set()
-        unique_results = []
-        for result in all_results:
-            if result['id'] not in seen_ids:
-                seen_ids.add(result['id'])
-                unique_results.append(result)
-            if len(unique_results) >= 8:
-                break
-        
+
+        for rec in direct_matches[:3]:
+            search_query = f"{rec['track_name']} {rec['track_artist']}"
+            youtube_results = search_youtube_music(search_query, 1)
+            if youtube_results:
+                result = youtube_results[0]
+                result['source'] = 'direct_match'
+                result['track_info'] = rec
+                all_results.append(result)
+
+        for rec in mood_matches[:7]:
+            search_query = f"{rec['track_name']} {rec['track_artist']}"
+            youtube_results = search_youtube_music(search_query, 1)
+            if youtube_results:
+                result = youtube_results[0]
+                result['source'] = 'mood_match'
+                result['track_info'] = rec
+                all_results.append(result)
+
         return jsonify({
-            'mood': ml_result['mood'],
-            'confidence': ml_result['confidence'],
-            'results': unique_results,
-            'top_match': unique_results[0] if unique_results else None
+            'mood': detected_mood,
+            'preference': preference,
+            'results': all_results,
+            'direct_matches_count': len(direct_matches),
+            'mood_matches_count': len(mood_matches),
+            'top_match': all_results[0] if all_results else None
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+
 @app.route("/ml-test", methods=["GET", "POST"])
 def ml_test():
+    """
+    ML testing interface for debugging recommendations
+    Shows raw ML output without YouTube integration
+    """
     prompt = ""
     detected_mood = None
     recs = []
-    preference = "balanced"  # default
-    
+    preference = "balanced"
+
     if request.method == "POST":
         prompt = request.form.get("prompt", "")
         preference = request.form.get("preference", "balanced")
         detected_mood = mood_from_prompt(prompt)
-        
-        # Use the new function with preference
-        from ml_core import recommend_by_mood_with_preference
-        recs = recommend_by_mood_with_preference(detected_mood, preference, top_k=10, user_query=prompt)
+        recs = recommend_by_mood_with_preference(
+            detected_mood,
+            preference,
+            top_k=10,
+            user_query=prompt
+        )
 
     return render_template(
         "ml_test.html",
@@ -191,7 +220,9 @@ def ml_test():
         preference=preference
     )
 
-
+# ============================================================================
+# APPLICATION ENTRY POINT
+# ============================================================================
 
 if __name__ == '__main__':
     app.run(debug=True)

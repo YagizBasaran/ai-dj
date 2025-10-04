@@ -3,10 +3,16 @@
   <head>
     <meta charset="utf-8" />
     <title>ML Test – Prompt → Top 10</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <style>
       :root { --fg:#111; --muted:#666; --border:#eee; --bg:#fff; }
-      html, body { background: var(--bg); color: var(--fg); font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif; }
+      html, body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family: system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+        overscroll-behavior-y: none;
+        -webkit-overflow-scrolling: touch;
+      }
       .wrap { max-width: 920px; margin: 40px auto; padding: 0 16px; }
       h1 { margin: 0 0 8px; font-size: 28px; display: inline-block; }
       .hint { color: var(--muted); margin-bottom: 16px; }
