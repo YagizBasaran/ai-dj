@@ -92,6 +92,65 @@ def search_youtube_music(query, max_results=5):
     except Exception as e:
         print(f"YouTube API Error: {e}")
         return []
+    
+def search_youtube_direct(query, max_results=2):
+    """
+    Direct search using YouTube API - returns formatted results like ML recommendations
+    """
+    try:
+        url = "https://www.googleapis.com/youtube/v3/search"
+        params = {
+            'part': 'snippet',
+            'q': query + " official audio",  # Better for music results
+            'type': 'video',
+            'maxResults': max_results,
+            'key': YOUTUBE_API_KEY,
+            'videoCategoryId': '10',  # Music category
+            'order': 'relevance'
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        results = []
+        if 'items' in data:
+            for item in data['items']:
+                # Parse track name and artist from YouTube title
+                title = item['snippet']['title']
+                channel = item['snippet']['channelTitle']
+                
+                # Try to split title into song and artist
+                # Common formats: "Artist - Song", "Song by Artist", "Song (Artist)"
+                track_name = title
+                track_artist = channel
+                
+                if ' - ' in title:
+                    parts = title.split(' - ', 1)
+                    track_artist = parts[0].strip()
+                    track_name = parts[1].strip()
+                elif ' by ' in title.lower():
+                    parts = title.lower().split(' by ', 1)
+                    track_name = title[:len(parts[0])].strip()
+                    track_artist = title[len(parts[0])+4:].strip()
+                
+                results.append({
+                    'track_name': track_name,
+                    'track_artist': track_artist,
+                    'track_album_name': 'YouTube',
+                    'mood': 'direct',
+                    'track_popularity': 100,  # YouTube results are assumed popular
+                    'is_direct_match': True,
+                    'thumbnail': item['snippet']['thumbnails']['medium']['url'],
+                    'youtube_id': item['id']['videoId'],
+                    'match_score': 100.0,
+                    'final_score': 100.0
+                })
+        
+        return results
+    except Exception as e:
+        print(f"YouTube Direct Search Error: {e}")
+        return []
+
 
 # Routes for explanatory pages
 @app.route('/')
@@ -105,35 +164,40 @@ def home():
 # NEW: JSON API endpoint for ML recommendations
 @app.route('/api/recommend', methods=['POST'])
 def api_recommend():
-    """
-    API endpoint that returns ML recommendations as JSON
-    """
     try:
         data = request.json
         prompt = data.get('prompt', '')
         preference = data.get('preference', 'balanced')
+        use_youtube_direct = data.get('use_youtube_direct', True)  # FIX #1
         
         if not prompt:
             return jsonify({'error': 'No prompt provided'}), 400
         
-        # Get mood from prompt
         detected_mood = mood_from_prompt(prompt)
         
-        # Get recommendations using ML
         recommendations = recommend_by_mood_with_preference(
             mood=detected_mood, 
             preference=preference, 
-            top_k=10,  # Total recommendations
-            user_query=prompt  # For direct search
+            top_k=10,
+            user_query=prompt
         )
         
-        # Separate direct matches from mood-based
-        direct_matches = [r for r in recommendations if r.get('is_direct_match', False)]
         mood_based = [r for r in recommendations if not r.get('is_direct_match', False)]
+
+        # Use YouTube API or pandas algorithm for direct search
+        if use_youtube_direct:
+            print(f"[DEBUG] Using YouTube API for direct search")
+            direct_matches = search_youtube_direct(prompt, max_results=2)
+        else:
+            print(f"[DEBUG] Using pandas algorithm for direct search")
+            direct_matches = [r for r in recommendations if r.get('is_direct_match', False)]
         
-        # Function to add YouTube thumbnail to a track
         def add_youtube_thumbnail(track):
             try:
+                # Skip if already has thumbnail
+                if 'thumbnail' in track and track['thumbnail']:
+                    return track
+                    
                 search_query = f"{track['track_name']} {track['track_artist']}"
                 youtube_results = search_youtube_music(search_query, 1)
                 if youtube_results and len(youtube_results) > 0:
@@ -147,7 +211,7 @@ def api_recommend():
                 track['youtube_id'] = None
             return track
         
-        # Get YouTube video for the TOP MOOD-BASED SONG
+        # Top match video
         top_match_video = None
         if len(mood_based) > 0:
             top_song = mood_based[0]
@@ -160,28 +224,28 @@ def api_recommend():
                     'artist': top_song['track_artist']
                 }
         
-        # Add thumbnails to first 5 mood-based songs
+        # Add thumbnails to mood-based songs
         mood_based_with_thumbs = []
         for i, track in enumerate(mood_based[:5]):
             mood_based_with_thumbs.append(add_youtube_thumbnail(track))
         
-        # Add thumbnails to direct matches (max 2)
-        direct_with_thumbs = []
-        for track in direct_matches[:2]:
-            direct_with_thumbs.append(add_youtube_thumbnail(track))
+        # Direct matches already have thumbnails (from YouTube) - FIX #2
+        direct_with_thumbs = direct_matches[:2]
         
-        # Format response
         response = {
             'mood': detected_mood,
-            'moodBased': mood_based_with_thumbs,  # Now limited to 5 with thumbnails
-            'directSearch': direct_with_thumbs,  # Max 2 with thumbnails
-            'topMatch': top_match_video
+            'moodBased': mood_based_with_thumbs,
+            'directSearch': direct_with_thumbs,
+            'topMatch': top_match_video,
+            'directSearchMethod': 'youtube' if use_youtube_direct else 'pandas'
         }
         
         return jsonify(response)
         
     except Exception as e:
         print(f"Error in api_recommend: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/process_request', methods=['POST'])
