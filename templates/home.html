@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI DJ - Home</title>
+    <title>AI DJ</title>
     <style>
         * {
             margin: 0;
@@ -12,351 +12,757 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
             color: white;
         }
 
+        .container {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: 70px 1fr 80px;
+            height: 100vh;
+            gap: 0;
+        }
+
+        /* Header */
         .header {
-            text-align: center;
-            padding: 2rem 0;
+            grid-column: 1 / -1;
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0 2rem;
+            gap: 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
+            font-size: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
-        .main-container {
-            max-width: 1000px;
-            margin: 2rem auto;
-            padding: 0 2rem;
+        .header .tagline {
+            font-size: 0.95rem;
+            opacity: 0.9;
         }
 
-        .input-section {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-
-        .input-container {
-            position: relative;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        #userInput {
-            width: 100%;
-            padding: 15px 20px;
-            font-size: 1.1rem;
-            border: none;
-            border-radius: 50px;
-            background: rgba(255, 255, 255, 0.9);
-            color: #333;
-            outline: none;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        #userInput::placeholder {
-            color: #666;
-        }
-
-        .submit-btn {
-            position: absolute;
-            right: 5px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
-            border: none;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-
-        .submit-btn:hover {
-            transform: translateY(-50%) scale(1.05);
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            margin: 2rem 0;
-        }
-
-        .loading-spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top: 4px solid #fff;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .results-section {
-            display: none;
-        }
-
-        .mood-display {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            padding: 1rem;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-
-        .current-player {
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 20px;
+        /* Left Sidebar */
+        .sidebar {
+            background: rgba(255, 255, 255, 0.05);
             padding: 1.5rem;
-            margin-bottom: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
         }
 
-        .current-player h3 {
-            margin-bottom: 1rem;
-        }
-
-        .youtube-player {
-            width: 100%;
-            height: 315px;
-            border-radius: 15px;
-            border: none;
-        }
-
-        .results-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        .result-card {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            padding: 1rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-        }
-
-        .result-card:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
-            border-color: rgba(255, 255, 255, 0.3);
-        }
-
-        .result-card img {
-            width: 100%;
-            height: 150px;
-            object-fit: cover;
-            border-radius: 10px;
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 600;
             margin-bottom: 0.5rem;
-        }
-
-        .result-card h4 {
-            font-size: 1rem;
-            margin-bottom: 0.5rem;
-            line-height: 1.3;
-        }
-
-        .result-card p {
-            font-size: 0.9rem;
-            color: #ddd;
-            margin-bottom: 0.5rem;
-        }
-
-        .channel-name {
-            font-size: 0.8rem;
-            color: #bbb;
-        }
-
-        .examples {
-            margin-top: 1rem;
-            text-align: left;
+            opacity: 0.9;
         }
 
         .example-item {
             background: rgba(255, 255, 255, 0.1);
-            padding: 0.5rem 1rem;
+            padding: 0.6rem;
             border-radius: 10px;
-            margin: 0.5rem 0;
+            margin-bottom: 0.4rem;
             cursor: pointer;
-            transition: background 0.3s ease;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
         }
 
         .example-item:hover {
             background: rgba(255, 255, 255, 0.2);
+            transform: translateX(5px);
+        }
+
+        /* Mode Buttons */
+        .mode-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .mode-button {
+            padding: 0.65rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: white;
+        }
+
+        .mode-button.discovery {
+            background: #3b82f6;
+        }
+
+        .mode-button.mainstream {
+            background: #f97316;
+        }
+
+        .mode-button.balanced {
+            background: #10b981;
+        }
+
+        .mode-button.active {
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .mode-button:hover {
+            opacity: 0.9;
+            transform: scale(1.05);
+        }
+
+        /* Chat Area */
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 1rem;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        /* User Message */
+        .user-message {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 1rem;
+        }
+
+        .user-bubble {
+            background: rgba(255, 255, 255, 0.85);
+            color: #333;
+            padding: 1rem;
+            border-radius: 18px 18px 4px 18px;
+            max-width: 60%;
+            word-wrap: break-word;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* AI Response */
+        .ai-response {
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            border-radius: 18px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .detected-mood {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #764ba2;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            background: rgba(118, 75, 162, 0.1);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .recommendations-grid {
+            display: grid;
+            grid-template-columns: 2.5fr 3.5fr 1.5fr;
+            gap: 1rem;
+            min-height: 400px;
+        }
+
+        /* Mood Based Section */
+        .mood-based-section {
+            background: rgba(59, 130, 246, 0.05);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .section-header {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #3b82f6;
+            margin-bottom: 0.75rem;
+        }
+
+        .song-cards {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.4rem;
+            overflow: hidden;
+        }
+
+        /* Mood-based specific to fit 5 cards */
+        .mood-based-section .song-cards {
+            height: calc(100% - 30px); /* Account for header */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .song-card {
+            background: white;
+            border-radius: 8px;
+            padding: 0.75rem;
+            border: 1px solid #e5e5e5;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+        }
+
+        .song-card:hover {
+            transform: translateX(3px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-color: #764ba2;
+        }
+
+        .song-card.playing {
+            background: linear-gradient(135deg, rgba(118, 75, 162, 0.1), rgba(103, 126, 234, 0.1));
+            border-color: #764ba2;
+            border-width: 2px;
+        }
+
+        .song-card.playing::before {
+            content: "▶";
+            position: absolute;
+            left: -12px;
+            color: #764ba2;
+            font-size: 10px;
+        }
+
+        .song-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .song-thumbnail {
+            width: 50px;
+            height: 50px;
+            border-radius: 6px;
+            object-fit: cover;
+            flex-shrink: 0;
+            background: #f0f0f0;
+        }
+
+        .song-thumbnail.placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ccc;
+            font-size: 1.2rem;
+        }
+
+        .song-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .song-artist {
+            font-size: 0.75rem;
+            color: #666;
+            margin-bottom: 0.2rem;
+        }
+
+        .song-album {
+            font-size: 0.7rem;
+            color: #999;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Player Section */
+        .player-section {
+            background: rgba(118, 75, 162, 0.05);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid rgba(118, 75, 162, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .player-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #764ba2;
+            margin-bottom: 0.75rem;
+        }
+
+        .youtube-player {
+            width: 100%;
+            flex: 1;
+            border-radius: 10px;
+            border: none;
+            min-height: 300px;
+        }
+
+        /* Direct Search Section */
+        .direct-search-section {
+            background: rgba(249, 115, 22, 0.05);
+            border-radius: 12px;
+            padding: 1rem;
+            border: 1px solid rgba(249, 115, 22, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .direct-header {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #f97316;
+            margin-bottom: 0.75rem;
+        }
+
+        .direct-search-section .song-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        /* Direct Search Section specific styles */
+        .direct-search-section .song-card {
+            padding: 0.6rem;
+        }
+
+        .direct-search-section .song-thumbnail {
+            width: 45px;
+            height: 45px;
+        }
+
+        .direct-search-section .song-title {
+            font-size: 0.8rem;
+        }
+
+        .direct-search-section .song-artist {
+            font-size: 0.7rem;
+        }
+
+        .direct-search-section .song-album {
+            font-size: 0.65rem;
+        }
+
+        /* Chat Input */
+        .chat-input-container {
+            grid-column: 2;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            gap: 0.75rem;
+            max-width: 100%;
+        }
+
+        #chatInput {
+            flex: 1;
+            padding: 0.75rem 1.25rem;
+            border: none;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        #chatInput::placeholder {
+            color: #666;
+        }
+
+        .send-button {
+            padding: 0.75rem 1.5rem;
+            background: rgba(255, 255, 255, 0.85);
+            border: none;
+            border-radius: 25px;
+            color: #333;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .send-button:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+        }
+
+        /* Loading Animation */
+        .loading-dots {
+            display: inline-flex;
+            gap: 0.25rem;
+        }
+
+        .loading-dots span {
+            width: 8px;
+            height: 8px;
+            background: #764ba2;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dots span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .loading-dots span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes bounce {
+            0%, 80%, 100% {
+                transform: scale(0);
+            }
+            40% {
+                transform: scale(1);
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🎧 AI DJ</h1>
-        <p>Tell me how you feel, what you want to hear, or just chat about music!</p>
-    </div>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎧 AI DJ</h1>
+            <span class="tagline">Tell me how you feel, what you want to hear, or just chat about music!</span>
+        </div>
 
-    <div class="main-container">
-        <div class="input-section">
-            <div class="input-container">
-                <input 
-                    type="text" 
-                    id="userInput" 
-                    placeholder="e.g., 'I'm feeling nostalgic and want some 90s hits' or 'Play something energetic for my workout'"
-                >
-                <button class="submit-btn" onclick="processRequest()">🎵</button>
-            </div>
-            
-            <div class="examples">
-                <p><strong>Try these examples:</strong></p>
+        <!-- Left Sidebar -->
+        <div class="sidebar">
+            <!-- Examples Section -->
+            <div class="examples-section">
+                <div class="section-title">Try these examples:</div>
                 <div class="example-item" onclick="fillExample('I broke up with my valentine')">
                     💔 "I broke up with my valentine"
                 </div>
-                <div class="example-item" onclick="fillExample('Competitive match incoming in 15 mins')">
-                    ⚡ "Competitive match incoming in 15 mins"
+                <div class="example-item" onclick="fillExample('Competitive match incoming')">
+                    ⚡ "Competitive match incoming"
                 </div>
                 <div class="example-item" onclick="fillExample('Need some chill music to study')">
                     📚 "Need some chill music to study"
                 </div>
-                <div class="example-item" onclick="fillExample('You only need the light when its burning low')">
-                    🎤 "You only need the light when its burning low"
+                <div class="example-item" onclick="fillExample('Feeling romantic tonight')">
+                    ❤️ "Feeling romantic tonight"
+                </div>
+            </div>
+
+            <!-- Mode Selection -->
+            <div class="mode-section">
+                <div class="section-title">Choose your search mode:</div>
+                <div class="mode-buttons">
+                    <button class="mode-button discovery" onclick="setMode('discovery')">
+                        🔍 Discovery
+                    </button>
+                    <button class="mode-button mainstream" onclick="setMode('mainstream')">
+                        📻 Mainstream
+                    </button>
+                    <button class="mode-button balanced active" onclick="setMode('balanced')">
+                        ⚖️ Balanced
+                    </button>
                 </div>
             </div>
         </div>
 
-        <div class="loading" id="loading">
-            <div class="loading-spinner"></div>
-            <p>AI is analyzing your request and finding perfect matches...</p>
+        <!-- Chat Area -->
+        <div class="chat-area">
+            <div class="chat-messages" id="chatMessages">
+                <!-- Messages will be added here -->
+            </div>
         </div>
 
-        <div class="results-section" id="results">
-            <div class="mood-display" id="moodDisplay"></div>
-            
-            <div class="current-player" id="currentPlayer"></div>
-            
-            <div class="results-grid" id="resultsGrid"></div>
+        <!-- Empty corner for grid structure -->
+        <div style="grid-column: 1; background: rgba(255, 255, 255, 0.05);"></div>
+
+        <!-- Chat Input -->
+        <div class="chat-input-container">
+            <div class="chat-input-wrapper">
+                <input 
+                    type="text" 
+                    id="chatInput" 
+                    placeholder="How do you feel or what do you want to listen to?"
+                    onkeypress="handleKeyPress(event)"
+                >
+                <button class="send-button" onclick="sendMessage()">Send 🎵</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Allow Enter key to submit
-        document.getElementById('userInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                processRequest();
-            }
-        });
+        let currentMode = 'balanced';
 
-        function fillExample(text) {
-            document.getElementById('userInput').value = text;
+        function setMode(mode) {
+            currentMode = mode;
+            // Update active state
+            document.querySelectorAll('.mode-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`.mode-button.${mode}`).classList.add('active');
         }
 
-        async function processRequest() {
-            const input = document.getElementById('userInput').value.trim();
+        function fillExample(text) {
+            document.getElementById('chatInput').value = text;
+            document.getElementById('chatInput').focus();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput').value.trim();
             if (!input) return;
 
-            // Show loading
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('results').style.display = 'none';
+            const chatMessages = document.getElementById('chatMessages');
+            
+            // Clear chat for fresh start
+            chatMessages.innerHTML = '';
+
+            // Add user message
+            const userMessageDiv = document.createElement('div');
+            userMessageDiv.className = 'user-message';
+            userMessageDiv.innerHTML = `<div class="user-bubble">${input}</div>`;
+            chatMessages.appendChild(userMessageDiv);
+
+            // Clear input
+            document.getElementById('chatInput').value = '';
+
+            // Add loading message
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'ai-response';
+            loadingDiv.innerHTML = `
+                <div class="loading-dots">
+                    <span></span><span></span><span></span>
+                </div>
+            `;
+            chatMessages.appendChild(loadingDiv);
+
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
 
             try {
-                const response = await fetch('/process_request', {
+                // Call the ML API endpoint
+                const response = await fetch('/api/recommend', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ input: input })
+                    body: JSON.stringify({
+                        prompt: input,
+                        preference: currentMode
+                    })
                 });
 
-                const data = await response.json();
-
-                if (data.error) {
-                    alert('Error: ' + data.error);
-                    return;
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                displayResults(data);
+                const data = await response.json();
+                
+                // Remove loading
+                loadingDiv.remove();
+
+                // Add AI response with real data
+                displayAIResponse(data);
+
             } catch (error) {
-                alert('Something went wrong: ' + error.message);
-            } finally {
-                document.getElementById('loading').style.display = 'none';
+                console.error('Error:', error);
+                loadingDiv.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
             }
         }
 
-        function displayResults(data) {
-            // Show mood
-            const moodDisplay = document.getElementById('moodDisplay');
-            moodDisplay.innerHTML = `
-                <h3>🎯 Detected Mood: ${data.mood}</h3>
-                <p>Confidence: ${Math.round(data.confidence * 100)}%</p>
-            `;
-
-            // Show top match player
-            const currentPlayer = document.getElementById('currentPlayer');
-            if (data.top_match) {
-                currentPlayer.innerHTML = `
-                    <h3>🎵 Now Playing: ${data.top_match.title}</h3>
+        function displayAIResponse(data) {
+            const chatMessages = document.getElementById('chatMessages');
+            
+            const aiResponse = document.createElement('div');
+            aiResponse.className = 'ai-response';
+            aiResponse.id = 'current-ai-response'; // Add ID to reference it later
+            
+            // Store the data in the response element for later use
+            aiResponse.dataset.recommendations = JSON.stringify(data);
+            
+            // Format the tracks properly with thumbnails
+            const formatTrackCard = (track, index, type) => {
+                const thumbnailHtml = track.thumbnail 
+                    ? `<img src="${track.thumbnail}" alt="thumbnail" class="song-thumbnail">`
+                    : `<div class="song-thumbnail placeholder">🎵</div>`;
+                
+                // Add data attributes to store track info for click handler
+                return `
+                    <div class="song-card" 
+                         onclick="playTrack(${index}, '${type}')"
+                         data-youtube-id="${track.youtube_id || ''}"
+                         data-track-name="${(track.track_name || 'Unknown').replace(/'/g, '&apos;')}"
+                         data-track-artist="${(track.track_artist || 'Unknown').replace(/'/g, '&apos;')}">
+                        <div class="song-info">
+                            <div class="song-title">${track.track_name || 'Unknown'}</div>
+                            <div class="song-artist">${track.track_artist || 'Unknown'}</div>
+                            <div class="song-album">${track.track_album_name || 'Unknown'}</div>
+                        </div>
+                        ${thumbnailHtml}
+                    </div>
+                `;
+            };
+            
+            // Format mood-based (limit to 5) and direct search results with thumbnails
+            const moodBasedHtml = data.moodBased.slice(0, 5).map((track, index) => 
+                formatTrackCard(track, index, 'mood')
+            ).join('');
+            
+            const directSearchHtml = data.directSearch.slice(0, 2).map((track, index) => 
+                formatTrackCard(track, index, 'direct')
+            ).join('');
+            
+            // Build the YouTube player if top match exists
+            let playerHtml = '';
+            if (data.topMatch && data.topMatch.id) {
+                playerHtml = `
                     <iframe 
+                        id="youtube-player"
                         class="youtube-player"
-                        src="https://www.youtube.com/embed/${data.top_match.id}?autoplay=1" 
-                        frameborder="0" 
-                        allow="autoplay; encrypted-media" 
+                        src="https://www.youtube.com/embed/${data.topMatch.id}?autoplay=1"
+                        allow="autoplay; encrypted-media"
                         allowfullscreen>
                     </iframe>
-                    <p style="margin-top: 1rem;"><strong>Channel:</strong> ${data.top_match.channel}</p>
+                `;
+            } else {
+                playerHtml = `
+                    <iframe 
+                        id="youtube-player"
+                        class="youtube-player"
+                        style="display: none;">
+                    </iframe>
+                    <div id="player-placeholder" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">
+                        No video available
+                    </div>
                 `;
             }
-
-            // Show all results
-            const resultsGrid = document.getElementById('resultsGrid');
-            resultsGrid.innerHTML = '<h3>🎼 Other Recommendations:</h3>';
             
-            data.results.slice(1).forEach(result => {
-                const card = document.createElement('div');
-                card.className = 'result-card';
-                card.onclick = () => playVideo(result.id, result.title, result.channel);
+            aiResponse.innerHTML = `
+                <div class="detected-mood">Detected Mood: ${data.mood}</div>
                 
-                card.innerHTML = `
-                    <img src="${result.thumbnail}" alt="${result.title}">
-                    <h4>${result.title}</h4>
-                    <p>${result.description}</p>
-                    <div class="channel-name">${result.channel}</div>
-                `;
-                
-                resultsGrid.appendChild(card);
-            });
-
-            document.getElementById('results').style.display = 'block';
-        }
-
-        function playVideo(videoId, title, channel) {
-            const currentPlayer = document.getElementById('currentPlayer');
-            currentPlayer.innerHTML = `
-                <h3>🎵 Now Playing: ${title}</h3>
-                <iframe 
-                    class="youtube-player"
-                    src="https://www.youtube.com/embed/${videoId}?autoplay=1" 
-                    frameborder="0" 
-                    allow="autoplay; encrypted-media" 
-                    allowfullscreen>
-                </iframe>
-                <p style="margin-top: 1rem;"><strong>Channel:</strong> ${channel}</p>
+                <div class="recommendations-grid">
+                    <!-- Mood Based Recommendations -->
+                    <div class="mood-based-section">
+                        <div class="section-header">Mood-based recommendations</div>
+                        <div class="song-cards">
+                            ${moodBasedHtml || '<div style="color: #999;">No mood-based recommendations</div>'}
+                        </div>
+                    </div>
+                    
+                    <!-- Player Section -->
+                    <div class="player-section">
+                        <div class="player-title" id="player-title">▶ Now Playing</div>
+                        ${playerHtml}
+                    </div>
+                    
+                    <!-- Direct Search Results -->
+                    <div class="direct-search-section">
+                        <div class="direct-header">Direct search results</div>
+                        <div class="song-cards">
+                            ${directSearchHtml || '<div style="color: #999;">No direct matches</div>'}
+                        </div>
+                    </div>
+                </div>
             `;
             
-            // Scroll to player
-            currentPlayer.scrollIntoView({ behavior: 'smooth' });
+            chatMessages.appendChild(aiResponse);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Function to play a track when clicked
+        async function playTrack(index, type) {
+            const response = document.getElementById('current-ai-response');
+            if (!response) return;
+            
+            const data = JSON.parse(response.dataset.recommendations);
+            const track = type === 'mood' ? data.moodBased[index] : data.directSearch[index];
+            
+            if (!track) return;
+            
+            // Remove playing class from all cards
+            document.querySelectorAll('.song-card').forEach(card => {
+                card.classList.remove('playing');
+            });
+            
+            // Add playing class to clicked card
+            const clickedCard = event.currentTarget;
+            clickedCard.classList.add('playing');
+            
+            const player = document.getElementById('youtube-player');
+            const placeholder = document.getElementById('player-placeholder');
+            const playerTitle = document.getElementById('player-title');
+            
+            // If we already have a youtube_id, use it
+            if (track.youtube_id) {
+                player.src = `https://www.youtube.com/embed/${track.youtube_id}?autoplay=1`;
+                player.style.display = 'block';
+                if (placeholder) placeholder.style.display = 'none';
+                playerTitle.innerHTML = `▶ Now Playing: ${track.track_name} - ${track.track_artist}`;
+            } else {
+                // If no youtube_id, try to search for it
+                try {
+                    const searchQuery = `${track.track_name} ${track.track_artist}`;
+                    const response = await fetch('/process_request', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({input: searchQuery})
+                    });
+                    
+                    const result = await response.json();
+                    if (result.top_match && result.top_match.id) {
+                        player.src = `https://www.youtube.com/embed/${result.top_match.id}?autoplay=1`;
+                        player.style.display = 'block';
+                        if (placeholder) placeholder.style.display = 'none';
+                        playerTitle.innerHTML = `▶ Now Playing: ${track.track_name} - ${track.track_artist}`;
+                    }
+                } catch (error) {
+                    console.error('Error loading video:', error);
+                    playerTitle.innerHTML = `▶ Error loading video for: ${track.track_name}`;
+                }
+            }
         }
     </script>
 </body>
