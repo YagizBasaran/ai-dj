@@ -403,7 +403,7 @@ def recommend_by_mood_with_preference(mood: str, preference: str = "balanced", t
     
     # 2. SECOND: Get mood-based recommendations
     pool = _tracks_df
-    ranked = rank_candidates_with_rf(pool, target_mood=mood, top_k=50)  # Get more candidates
+    ranked = rank_candidates_with_rf(pool, target_mood=mood, top_k=60)  # Get more candidates
     
     # If we have direct matches, exclude them from mood-based results to avoid duplicates
     if direct_matches:
