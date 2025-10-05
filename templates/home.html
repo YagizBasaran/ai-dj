@@ -224,6 +224,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            grid-column: 1 / -1;
         }
 
         .section-badge {
@@ -281,9 +282,53 @@
         .example-item:hover {
             background: rgba(255, 255, 255, 0.2);
         }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 1rem;
+            justify-content: center;
+        }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+
+        .action-btn.liked {
+            background: rgba(255, 59, 92, 0.3);
+            border-color: #ff3b5c;
+        }
+
+        .action-btn.disliked {
+            background: rgba(100, 100, 100, 0.3);
+            border-color: #666;
+        }
+
+        .preference-badge {
+            display: none;
+        }
     </style>
 </head>
 <body>
+    <div class="preference-badge" id="preferenceBadge">
+        <strong>Preferences:</strong> <span id="preferenceStats"></span>
+    </div>
+
     <div class="header">
         <h1>🎧 AI DJ</h1>
         <p>Tell me how you feel, what you want to hear, or just chat about music!</p>
@@ -344,6 +389,141 @@
 
     <script>
         let currentPreference = 'balanced';
+        let currentPlayingVideo = null;
+
+        // ============================================================
+        // USER PREFERENCES MANAGER (localStorage)
+        // ============================================================
+
+        const UserPreferences = {
+            init() {
+                if (!localStorage.getItem('ai_dj_preferences')) {
+                    this.reset();
+                }
+            },
+
+            get() {
+                return JSON.parse(localStorage.getItem('ai_dj_preferences'));
+            },
+
+            save(data) {
+                localStorage.setItem('ai_dj_preferences', JSON.stringify(data));
+                this.updateBadge();
+            },
+
+            reset() {
+                const defaultPrefs = {
+                    liked_songs: [],
+                    disliked_songs: [],
+                    mood_counts: {},
+                    last_updated: new Date().toISOString()
+                };
+                this.save(defaultPrefs);
+            },
+
+            likeSong(videoId, title, mood) {
+                const prefs = this.get();
+
+                // Remove from disliked if exists
+                prefs.disliked_songs = prefs.disliked_songs.filter(s => s.id !== videoId);
+
+                // Add to liked if not already there
+                if (!prefs.liked_songs.find(s => s.id === videoId)) {
+                    prefs.liked_songs.push({ id: videoId, title, mood, date: new Date().toISOString() });
+                }
+
+                // Recalculate mood counts based on actual liked songs
+                this.recalculateMoodCounts(prefs);
+
+                this.save(prefs);
+            },
+
+            dislikeSong(videoId, title, mood) {
+                const prefs = this.get();
+
+                // Remove from liked if exists
+                prefs.liked_songs = prefs.liked_songs.filter(s => s.id !== videoId);
+
+                // Add to disliked if not already there
+                if (!prefs.disliked_songs.find(s => s.id === videoId)) {
+                    prefs.disliked_songs.push({ id: videoId, title, mood, date: new Date().toISOString() });
+                }
+
+                // Recalculate mood counts after removing from liked
+                this.recalculateMoodCounts(prefs);
+
+                this.save(prefs);
+            },
+
+            isLiked(videoId) {
+                const prefs = this.get();
+                return prefs.liked_songs.some(s => s.id === videoId);
+            },
+
+            isDisliked(videoId) {
+                const prefs = this.get();
+                return prefs.disliked_songs.some(s => s.id === videoId);
+            },
+
+            updateBadge() {
+                const prefs = this.get();
+                const badge = document.getElementById('preferenceBadge');
+                const stats = document.getElementById('preferenceStats');
+
+                const likedCount = prefs.liked_songs.length;
+                const dislikedCount = prefs.disliked_songs.length;
+
+                if (likedCount > 0 || dislikedCount > 0) {
+                    stats.textContent = `❤️ ${likedCount} | 👎 ${dislikedCount}`;
+                    badge.classList.add('show');
+                } else {
+                    badge.classList.remove('show');
+                }
+            },
+
+            getTopMoods(limit = 3) {
+                const prefs = this.get();
+                const moods = Object.entries(prefs.mood_counts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, limit)
+                    .map(([mood]) => mood);
+                return moods;
+            },
+
+            removeLike(videoId) {
+                const prefs = this.get();
+                prefs.liked_songs = prefs.liked_songs.filter(s => s.id !== videoId);
+
+                // Recalculate mood counts after removing
+                this.recalculateMoodCounts(prefs);
+
+                prefs.last_updated = new Date().toISOString();
+                this.save(prefs);
+            },
+
+            removeDislike(videoId) {
+                const prefs = this.get();
+                prefs.disliked_songs = prefs.disliked_songs.filter(s => s.id !== videoId);
+                prefs.last_updated = new Date().toISOString();
+                this.save(prefs);
+            },
+
+            recalculateMoodCounts(prefs) {
+                // Reset mood counts
+                prefs.mood_counts = {};
+
+                // Count moods from all liked songs
+                prefs.liked_songs.forEach(song => {
+                    if (song.mood) {
+                        prefs.mood_counts[song.mood] = (prefs.mood_counts[song.mood] || 0) + 1;
+                    }
+                });
+            }
+        };
+
+        // Initialize preferences on load
+        UserPreferences.init();
+        UserPreferences.updateBadge();
 
         // Update placeholder based on screen width
         function updatePlaceholder() {
@@ -384,11 +564,12 @@
             const input = document.getElementById('userInput').value.trim();
             if (!input) return;
 
-            // Show loading
             document.getElementById('loading').style.display = 'block';
             document.getElementById('results').style.display = 'none';
 
             try {
+                const prefs = UserPreferences.get();
+
                 const response = await fetch('/process_request', {
                     method: 'POST',
                     headers: {
@@ -396,7 +577,11 @@
                     },
                     body: JSON.stringify({
                         input: input,
-                        preference: currentPreference
+                        preference: currentPreference,
+                        user_preferences: {
+                            liked_moods: UserPreferences.getTopMoods(),
+                            disliked_songs: prefs.disliked_songs.map(s => s.title)
+                        }
                     })
                 });
 
@@ -416,6 +601,8 @@
         }
 
         function displayResults(data) {
+            console.log('Displaying results:', data);
+
             // Show mood and preference
             const moodDisplay = document.getElementById('moodDisplay');
             moodDisplay.innerHTML = `
@@ -429,6 +616,12 @@
             const currentPlayer = document.getElementById('currentPlayer');
             if (data.top_match) {
                 const isDirect = data.top_match.source === 'direct_match';
+                currentPlayingVideo = {
+                    id: data.top_match.id,
+                    title: data.top_match.title,
+                    mood: data.mood
+                };
+
                 currentPlayer.innerHTML = `
                     <h3>🎵 Now Playing: ${data.top_match.title}</h3>
                     ${isDirect ? '<span style="background: #fbbf24; color: #92400e; padding: 4px 10px; border-radius: 5px; font-size: 0.8rem; font-weight: 700;">DIRECT MATCH</span>' : ''}
@@ -440,6 +633,21 @@
                         allowfullscreen>
                     </iframe>
                     <p style="margin-top: 1rem;"><strong>Channel:</strong> ${data.top_match.channel}</p>
+                    <div class="action-buttons">
+                        <button class="action-btn ${UserPreferences.isLiked(data.top_match.id) ? 'liked' : ''}" onclick="handleLike('${data.top_match.id}', '${data.top_match.title.replace(/'/g, "\\'")}', '${data.mood}', this)">
+                            ❤️ Like
+                        </button>
+                        <button class="action-btn ${UserPreferences.isDisliked(data.top_match.id) ? 'disliked' : ''}" onclick="handleDislike('${data.top_match.id}', '${data.top_match.title.replace(/'/g, "\\'")}', '${data.mood}', this)">
+                            👎 Dislike
+                        </button>
+                    </div>
+                `;
+            } else {
+                currentPlayer.innerHTML = `
+                    <div style="text-align: center; padding: 2rem;">
+                        <h3>⚠️ No YouTube results found</h3>
+                        <p>YouTube API key may be missing or invalid. Check your .env file.</p>
+                    </div>
                 `;
             }
 
@@ -450,26 +658,26 @@
             const directMatches = data.results.filter(r => r.source === 'direct_match').slice(1);
             const moodMatches = data.results.filter(r => r.source === 'mood_match');
 
-            // Show direct matches section
             if (directMatches.length > 0) {
-                const directSection = document.createElement('div');
-                directSection.innerHTML = '<div class="section-title">⭐ Direct Matches <span class="section-badge">' + directMatches.length + '</span></div>';
-                resultsGrid.appendChild(directSection);
+                const directTitle = document.createElement('div');
+                directTitle.className = 'section-title';
+                directTitle.innerHTML = '⭐ Direct Matches <span class="section-badge">' + directMatches.length + '</span>';
+                resultsGrid.appendChild(directTitle);
 
                 directMatches.forEach(result => {
-                    const card = createResultCard(result, true);
+                    const card = createResultCard(result, true, data.mood);
                     resultsGrid.appendChild(card);
                 });
             }
 
-            // Show mood matches section
             if (moodMatches.length > 0) {
-                const moodSection = document.createElement('div');
-                moodSection.innerHTML = '<div class="section-title">🎼 Mood-Based Recommendations <span class="section-badge">' + moodMatches.length + '</span></div>';
-                resultsGrid.appendChild(moodSection);
+                const moodTitle = document.createElement('div');
+                moodTitle.className = 'section-title';
+                moodTitle.innerHTML = '🎼 Mood-Based Recommendations <span class="section-badge">' + moodMatches.length + '</span>';
+                resultsGrid.appendChild(moodTitle);
 
                 moodMatches.forEach(result => {
-                    const card = createResultCard(result, false);
+                    const card = createResultCard(result, false, data.mood);
                     resultsGrid.appendChild(card);
                 });
             }
@@ -477,10 +685,10 @@
             document.getElementById('results').style.display = 'block';
         }
 
-        function createResultCard(result, isDirect) {
+        function createResultCard(result, isDirect, mood) {
             const card = document.createElement('div');
             card.className = 'result-card' + (isDirect ? ' direct-match' : '');
-            card.onclick = () => playVideo(result.id, result.title, result.channel, isDirect);
+            card.onclick = () => playVideo(result.id, result.title, result.channel, isDirect, mood);
 
             card.innerHTML = `
                 ${isDirect ? '<span class="match-badge">DIRECT</span>' : ''}
@@ -493,7 +701,9 @@
             return card;
         }
 
-        function playVideo(videoId, title, channel, isDirect = false) {
+        function playVideo(videoId, title, channel, isDirect = false, mood = '') {
+            currentPlayingVideo = { id: videoId, title, mood };
+
             const currentPlayer = document.getElementById('currentPlayer');
             currentPlayer.innerHTML = `
                 <h3>🎵 Now Playing: ${title}</h3>
@@ -506,10 +716,53 @@
                     allowfullscreen>
                 </iframe>
                 <p style="margin-top: 1rem;"><strong>Channel:</strong> ${channel}</p>
+                <div class="action-buttons">
+                    <button class="action-btn ${UserPreferences.isLiked(videoId) ? 'liked' : ''}" onclick="handleLike('${videoId}', '${title.replace(/'/g, "\\'")}', '${mood}', this)">
+                        ❤️ Like
+                    </button>
+                    <button class="action-btn ${UserPreferences.isDisliked(videoId) ? 'disliked' : ''}" onclick="handleDislike('${videoId}', '${title.replace(/'/g, "\\'")}', '${mood}', this)">
+                        👎 Dislike
+                    </button>
+                </div>
             `;
 
-            // Scroll to player
             currentPlayer.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function handleLike(videoId, title, mood, button) {
+            const isAlreadyLiked = button.classList.contains('liked');
+
+            if (isAlreadyLiked) {
+                // Deselect like
+                button.classList.remove('liked');
+                UserPreferences.removeLike(videoId);
+            } else {
+                // Select like
+                UserPreferences.likeSong(videoId, title, mood);
+                const parent = button.parentElement;
+                parent.querySelectorAll('.action-btn').forEach(btn => {
+                    btn.classList.remove('liked', 'disliked');
+                });
+                button.classList.add('liked');
+            }
+        }
+
+        function handleDislike(videoId, title, mood, button) {
+            const isAlreadyDisliked = button.classList.contains('disliked');
+
+            if (isAlreadyDisliked) {
+                // Deselect dislike
+                button.classList.remove('disliked');
+                UserPreferences.removeDislike(videoId);
+            } else {
+                // Select dislike
+                UserPreferences.dislikeSong(videoId, title, mood);
+                const parent = button.parentElement;
+                parent.querySelectorAll('.action-btn').forEach(btn => {
+                    btn.classList.remove('liked', 'disliked');
+                });
+                button.classList.add('disliked');
+            }
         }
     </script>
 </body>

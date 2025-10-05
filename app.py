@@ -140,9 +140,9 @@ def process_request():
     Returns YouTube videos based on mood detection and ML recommendations
     """
     try:
-        # Extract request data
         user_input = request.json.get('input', '')
         preference = request.json.get('preference', 'balanced')
+        user_preferences = request.json.get('user_preferences', {})
 
         if not user_input:
             return jsonify({'error': 'No input provided'}), 400
@@ -152,7 +152,8 @@ def process_request():
             detected_mood,
             preference,
             top_k=10,
-            user_query=user_input
+            user_query=user_input,
+            user_preferences=user_preferences
         )
 
         direct_matches = [r for r in recs if r.get('is_direct_match', False)]

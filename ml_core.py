@@ -399,15 +399,16 @@ def search_direct_matches(query: str, top_k: int = 2) -> List[Dict]:
 # MAIN RECOMMENDATION FUNCTION
 # ============================================================================
 
-def recommend_by_mood_with_preference(mood: str, preference: str = "balanced", top_k: int = 10, user_query: str = "") -> List[Dict]:
+def recommend_by_mood_with_preference(mood: str, preference: str = "balanced", top_k: int = 10, user_query: str = "", user_preferences: dict = None) -> List[Dict]:
     """
-    Main recommendation function with Discovery/Mainstream preference + Direct Search
+    Main recommendation function with Discovery/Mainstream preference + Direct Search + User Preferences
 
     Args:
         mood: Detected mood
         preference: "discovery", "mainstream", or "balanced"
         top_k: Number of mood-based recommendations
         user_query: Original user input for direct search
+        user_preferences: User's liked moods and disliked songs from localStorage
 
     Returns:
         List with up to 2 direct matches + 10 mood-based recommendations
@@ -415,13 +416,31 @@ def recommend_by_mood_with_preference(mood: str, preference: str = "balanced", t
     if _tracks_df is None or len(_tracks_df) == 0:
         return []
 
+    user_preferences = user_preferences or {}
+    liked_moods = user_preferences.get('liked_moods', [])
+    disliked_songs = user_preferences.get('disliked_songs', [])
+
     direct_matches = []
     if user_query and user_query.strip():
         direct_matches = search_direct_matches(user_query, top_k=2)
         print(f"[DEBUG] Found {len(direct_matches)} direct matches for query: '{user_query}'")
 
     pool = _tracks_df
+
+    if disliked_songs:
+        pool = pool[~pool['track_name'].str.lower().isin([s.lower() for s in disliked_songs])]
+        print(f"[DEBUG] Filtered out {len(disliked_songs)} disliked songs")
+
     ranked = rank_candidates_with_rf(pool, target_mood=mood, top_k=50)
+
+    # Apply subtle boost to liked moods (move them up slightly, not to the top)
+    if liked_moods and len(liked_moods) > 0:
+        # Create a small boost score for liked moods (0.2 means ~20% boost)
+        ranked['liked_mood_boost'] = ranked['mood'].isin(liked_moods).astype(float) * 0.2
+        ranked = ranked.sample(frac=1, random_state=42).reset_index(drop=True)  # Shuffle first
+        ranked = ranked.sort_values('liked_mood_boost', ascending=False).reset_index(drop=True)
+        ranked = ranked.drop('liked_mood_boost', axis=1)
+        print(f"[DEBUG] Applied subtle boost to tracks from liked moods: {liked_moods}")
 
     if direct_matches:
         direct_track_ids = [(m['track_name'], m['track_artist']) for m in direct_matches]
