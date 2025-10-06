@@ -450,6 +450,140 @@
             animation-delay: -0.16s;
         }
 
+        .user-info {
+    position: absolute;
+    right: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.time-section {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 0.4rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.user-status {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.4rem 1rem;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.user-status.logged-in {
+    background: linear-gradient(135deg, #10b981, #059669);
+    box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
+}
+
+.logout-btn {
+    padding: 0.4rem 1.2rem;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-radius: 20px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+}
+
+.logout-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.pattern-banner {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15));
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    border: 1px solid rgb(0, 255, 170);
+    text-align: center;
+    font-size: 0.9rem;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.pattern-suggestions {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border: 2px solid rgba(16, 185, 129, 0.3);
+}
+
+.pattern-header {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #10b981;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pattern-message {
+    font-size: 0.85rem;
+    color: #059669;
+    margin-bottom: 1rem;
+    opacity: 0.9;
+}
+
+.pattern-songs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+}
+
+.pattern-song-card {
+    background: white;
+    border-radius: 10px;
+    padding: 0.75rem;
+    border: 1px solid #e5e5e5;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.pattern-song-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    border-color: #10b981;
+}
+
+.pattern-song-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.3rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pattern-song-artist {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 0.3rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pattern-song-mood {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border-radius: 10px;
+    font-weight: 600;
+}
+        
+
         @keyframes bounce {
             0%, 80%, 100% {
                 transform: scale(0);
@@ -466,6 +600,11 @@
         <div class="header">
             <h1>🎧 AI DJ</h1>
             <span class="tagline">Tell me how you feel, what you want to hear, or just chat about music!</span>
+            <div class="user-info" id="userInfo">
+                <span class="time-section" id="timeSection"></span>
+                <span class="user-status" id="userStatus">Guest Mode</span>
+                <button class="logout-btn" id="logoutBtn" onclick="handleLogout()" style="display: none;">Logout</button>
+            </div>
         </div>
 
         <!-- Left Sidebar -->
@@ -530,6 +669,107 @@
 
     <script>
         let currentMode = 'balanced';
+let isLoggedIn = false;
+let currentUserId = null;
+
+// Check login status and load time section on page load
+async function checkLoginStatus() {
+    try {
+        // Check if user is logged in
+        const userResponse = await fetch('/api/me');
+        if (userResponse.ok) {
+            const userData = await userResponse.json();
+            isLoggedIn = true;
+            currentUserId = userData.user_id;
+            
+            document.getElementById('userStatus').textContent = userData.username;
+            document.getElementById('userStatus').classList.add('logged-in');
+            document.getElementById('logoutBtn').style.display = 'block';
+        } else {
+            isLoggedIn = false;
+            document.getElementById('userStatus').textContent = 'Guest Mode';
+        }
+        
+        // Get current time section
+        const timeResponse = await fetch('/api/current-time-section');
+        if (timeResponse.ok) {
+            const timeData = await timeResponse.json();
+            document.getElementById('timeSection').textContent = timeData.display_name;
+        }
+        
+        // If logged in, check for time-based recommendations
+        if (isLoggedIn) {
+            await checkTimePatterns();
+        }
+        
+    } catch (error) {
+        console.error('Error checking status:', error);
+    }
+}
+
+// Check if user has time patterns and show recommendations
+async function checkTimePatterns() {
+    try {
+        const response = await fetch('/api/pattern-based-songs');
+        if (response.ok) {
+            const data = await response.json();
+            
+            if (data.has_suggestions && data.songs.length > 0) {
+                // Create pattern suggestions section
+                const patternSection = document.createElement('div');
+                patternSection.className = 'pattern-suggestions';
+                
+                const songsHtml = data.songs.map((song, index) => `
+                    <div class="pattern-song-card" onclick="playPatternSong(${index})">
+                        <div class="pattern-song-title">${song.track_name}</div>
+                        <div class="pattern-song-artist">${song.track_artist}</div>
+                        <span class="pattern-song-mood">${song.mood}</span>
+                    </div>
+                `).join('');
+                
+                patternSection.innerHTML = `
+                    <div class="pattern-header">
+                        ${data.message}
+                    </div>
+                    <div class="pattern-message">
+                        Based on your listening history, here are some ${data.moods.join(' and ')} songs you might enjoy:
+                    </div>
+                    <div class="pattern-songs-grid">
+                        ${songsHtml}
+                    </div>
+                `;
+                
+                // Store songs data for playback
+                patternSection.dataset.songs = JSON.stringify(data.songs);
+                
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.insertBefore(patternSection, chatMessages.firstChild);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking patterns:', error);
+    }
+}
+
+// Track song play (only for logged in users)
+async function trackSongPlay(songData) {
+    if (!isLoggedIn) {
+        return; // Don't track for guest users
+    }
+    
+    try {
+        await fetch('/api/track-play', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ song_data: songData })
+        });
+    } catch (error) {
+        console.error('Error tracking play:', error);
+    }
+}
+
+// Call on page load
+window.addEventListener('DOMContentLoaded', checkLoginStatus);
 
         function setMode(mode) {
             currentMode = mode;
@@ -712,58 +952,129 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
+        async function handleLogout() {
+            try {
+                const response = await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                if (response.ok) {
+                    window.location.href = '/';
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+                // Force redirect anyway
+                window.location.href = '/';
+            }
+        }
+
         // Function to play a track when clicked
         async function playTrack(index, type) {
-            const response = document.getElementById('current-ai-response');
-            if (!response) return;
-            
-            const data = JSON.parse(response.dataset.recommendations);
-            const track = type === 'mood' ? data.moodBased[index] : data.directSearch[index];
-            
-            if (!track) return;
-            
-            // Remove playing class from all cards
-            document.querySelectorAll('.song-card').forEach(card => {
-                card.classList.remove('playing');
+    const response = document.getElementById('current-ai-response');
+    if (!response) return;
+    
+    const data = JSON.parse(response.dataset.recommendations);
+    const track = type === 'mood' ? data.moodBased[index] : data.directSearch[index];
+    
+    if (!track) return;
+    
+    // Track this play for logged-in users
+    if (isLoggedIn) {
+        trackSongPlay({
+            mood: track.mood || data.mood,
+            track_name: track.track_name,
+            track_artist: track.track_artist
+        });
+    }
+    
+    // Remove playing class from all cards
+    document.querySelectorAll('.song-card').forEach(card => {
+        card.classList.remove('playing');
+    });
+    
+    // Add playing class to clicked card
+    const clickedCard = event.currentTarget;
+    clickedCard.classList.add('playing');
+    
+    const player = document.getElementById('youtube-player');
+    const placeholder = document.getElementById('player-placeholder');
+    const playerTitle = document.getElementById('player-title');
+    
+    // If we already have a youtube_id, use it
+    if (track.youtube_id) {
+        player.src = `https://www.youtube.com/embed/${track.youtube_id}?autoplay=1`;
+        player.style.display = 'block';
+        if (placeholder) placeholder.style.display = 'none';
+        playerTitle.innerHTML = `▶ Now Playing: ${track.track_name} - ${track.track_artist}`;
+    } else {
+        // If no youtube_id, try to search for it
+        try {
+            const searchQuery = `${track.track_name} ${track.track_artist}`;
+            const response = await fetch('/process_request', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({input: searchQuery})
             });
             
-            // Add playing class to clicked card
-            const clickedCard = event.currentTarget;
-            clickedCard.classList.add('playing');
-            
-            const player = document.getElementById('youtube-player');
-            const placeholder = document.getElementById('player-placeholder');
-            const playerTitle = document.getElementById('player-title');
-            
-            // If we already have a youtube_id, use it
-            if (track.youtube_id) {
-                player.src = `https://www.youtube.com/embed/${track.youtube_id}?autoplay=1`;
+            const result = await response.json();
+            if (result.top_match && result.top_match.id) {
+                player.src = `https://www.youtube.com/embed/${result.top_match.id}?autoplay=1`;
                 player.style.display = 'block';
                 if (placeholder) placeholder.style.display = 'none';
                 playerTitle.innerHTML = `▶ Now Playing: ${track.track_name} - ${track.track_artist}`;
-            } else {
-                // If no youtube_id, try to search for it
-                try {
-                    const searchQuery = `${track.track_name} ${track.track_artist}`;
-                    const response = await fetch('/process_request', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({input: searchQuery})
-                    });
-                    
-                    const result = await response.json();
-                    if (result.top_match && result.top_match.id) {
-                        player.src = `https://www.youtube.com/embed/${result.top_match.id}?autoplay=1`;
-                        player.style.display = 'block';
-                        if (placeholder) placeholder.style.display = 'none';
-                        playerTitle.innerHTML = `▶ Now Playing: ${track.track_name} - ${track.track_artist}`;
-                    }
-                } catch (error) {
-                    console.error('Error loading video:', error);
-                    playerTitle.innerHTML = `▶ Error loading video for: ${track.track_name}`;
-                }
             }
+        } catch (error) {
+            console.error('Error loading video:', error);
+            playerTitle.innerHTML = `▶ Error loading video for: ${track.track_name}`;
         }
+    }
+}
+
+async function playPatternSong(index) {
+    const patternSection = document.querySelector('.pattern-suggestions');
+    if (!patternSection) return;
+    
+    const songs = JSON.parse(patternSection.dataset.songs);
+    const song = songs[index];
+    
+    if (!song) return;
+    
+    // Track this play
+    if (isLoggedIn) {
+        trackSongPlay({
+            mood: song.mood,
+            track_name: song.track_name,
+            track_artist: song.track_artist
+        });
+    }
+    
+    // Search for YouTube video and play
+    try {
+        const searchQuery = `${song.track_name} ${song.track_artist}`;
+        const response = await fetch('/process_request', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({input: searchQuery})
+        });
+        
+        const result = await response.json();
+        
+        const player = document.getElementById('youtube-player');
+        const placeholder = document.getElementById('player-placeholder');
+        const playerTitle = document.getElementById('player-title');
+        
+        if (result.top_match && result.top_match.id) {
+            player.src = `https://www.youtube.com/embed/${result.top_match.id}?autoplay=1`;
+            player.style.display = 'block';
+            if (placeholder) placeholder.style.display = 'none';
+            playerTitle.innerHTML = `▶ Now Playing: ${song.track_name} - ${song.track_artist}`;
+        }
+        
+    } catch (error) {
+        console.error('Error playing song:', error);
+    }
+}
     </script>
 </body>
 </html>

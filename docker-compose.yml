@@ -20,11 +20,13 @@ services:
     volumes:
       - ./:/app
       - ./artifacts:/app/artifacts
+      - ./firebase-key.json:/app/firebase-key.json:ro
     environment:
       - FLASK_ENV=development
       - FLASK_DEBUG=1
       - MODEL_VERSION=v2
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-key.json
     env_file:
       - .env

@@ -395,6 +395,9 @@ def recommend_by_mood_with_preference(mood: str, preference: str = "balanced", t
     if _tracks_df is None or len(_tracks_df) == 0:
         return []
     
+    # if preference == "mainstream":
+    #     df["final_score"] = 0.30 * df["ml_score"] + 0.70 * df["pop_norm"]
+    
     # 1. FIRST: Get direct matches (if query provided)
     direct_matches = []
     if user_query and user_query.strip():
@@ -446,6 +449,50 @@ def recommend_by_mood_with_preference(mood: str, preference: str = "balanced", t
     
     print(f"[DEBUG] Returning {len(direct_matches)} direct + {len(mood_based_results)} mood = {len(final_results)} total")
     return final_results
+
+#Update of user account
+def get_songs_by_mood(mood: str, limit: int = 5) -> List[Dict]:
+    """
+    Get songs from database by mood
+    
+    Args:
+        mood: str - mood to filter by
+        limit: int - number of songs to return
+    
+    Returns:
+        list of dicts with song info
+    """
+    if _tracks_df is None or len(_tracks_df) == 0:
+        return []
+    
+    # Filter by mood
+    mood_songs = _tracks_df[_tracks_df['mood'] == mood].copy()
+    
+    if mood_songs.empty:
+        return []
+    
+    # Sort by popularity and get top songs
+    mood_songs = mood_songs.sort_values('track_popularity', ascending=False)
+    
+    # Add some randomization to avoid always showing same songs
+    if len(mood_songs) > limit * 3:
+        mood_songs = mood_songs.head(limit * 3).sample(frac=1).reset_index(drop=True)
+    
+    mood_songs = mood_songs.head(limit)
+    
+    # Convert to list of dicts
+    results = []
+    for _, row in mood_songs.iterrows():
+        results.append({
+            'track_name': row['track_name'],
+            'track_artist': row['track_artist'],
+            'track_album_name': row.get('track_album_name', 'Unknown'),
+            'mood': row['mood'],
+            'track_popularity': int(row['track_popularity'])
+        })
+    
+    return results
+
 
 # print(">>> ARTIFACTS DIR:", _ARTIFACTS_DIR)
 # print(">>> MODEL PATH EXISTS:", (Path(_ARTIFACTS_DIR) / "model.pkl").exists())

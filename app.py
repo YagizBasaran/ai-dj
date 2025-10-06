@@ -1,5 +1,5 @@
 import os, json
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect
 import requests
 import pandas as pd
 from pathlib import Path
@@ -12,10 +12,20 @@ from ml_core import (
     recommend_by_mood_with_preference,
     has_model,
     tracks_df,
-    numeric_features
+    numeric_features,
+    get_songs_by_mood,
+)
+
+from time_pattern_service import (
+    track_song_play, 
+    get_time_based_recommendations,
+    get_time_section,
+    get_user_time_section_display
 )
 
 app = Flask(__name__)
+app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-this-in-production')
+from auth_service import register_user, login_user, get_user
 
 # Debug file system BEFORE loading
 print(f"=== FILE SYSTEM DEBUG ===")
@@ -153,13 +163,17 @@ def search_youtube_direct(query, max_results=2):
 
 
 # Routes for explanatory pages
-@app.route('/')
-def intro_page():
-    return render_template('intro.html')
+# @app.route('/')
+# def intro_page():
+#     return render_template('intro.html')
 
 @app.route('/home')
 def home():
     return render_template('home.html')
+
+@app.route('/auth')
+def auth_page():
+    return render_template('auth.html')
 
 # NEW: JSON API endpoint for ML recommendations
 @app.route('/api/recommend', methods=['POST'])
@@ -335,6 +349,160 @@ def process_user_input(user_input):
         'search_terms': search_terms,
         'confidence': 0.85
     }
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    """Register a new user"""
+    data = request.json
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    
+    if not username or not password:
+        return jsonify({'error': 'Username and password required'}), 400
+    
+    if len(username) < 3:
+        return jsonify({'error': 'Username must be at least 3 characters'}), 400
+    
+    if len(password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+    
+    result = register_user(username, password)
+    
+    if result['success']:
+        # Auto-login after registration
+        session['user_id'] = result['user_id']
+        session['username'] = result['username']
+        return jsonify({
+            'message': 'Registration successful',
+            'user_id': result['user_id'],
+            'username': result['username']
+        }), 201
+    else:
+        return jsonify({'error': result['error']}), 400
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    """Login a user"""
+    data = request.json
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    
+    if not username or not password:
+        return jsonify({'error': 'Username and password required'}), 400
+    
+    result = login_user(username, password)
+    
+    if result['success']:
+        # Store in session
+        session['user_id'] = result['user_id']
+        session['username'] = result['username']
+        return jsonify({
+            'message': 'Login successful',
+            'user_id': result['user_id'],
+            'username': result['username']
+        }), 200
+    else:
+        return jsonify({'error': result['error']}), 401
+
+@app.route('/api/logout', methods=['POST'])
+def api_logout():
+    """Logout current user"""
+    session.clear()
+    return jsonify({'message': 'Logged out successfully'}), 200
+
+@app.route('/api/me', methods=['GET'])
+def api_me():
+    """Get current logged-in user"""
+    user_id = session.get('user_id')
+    
+    if not user_id:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    user_data = get_user(user_id)
+    
+    if user_data:
+        return jsonify(user_data), 200
+    else:
+        session.clear()
+        return jsonify({'error': 'User not found'}), 404
+
+@app.route('/')
+def intro_page():
+    # Check if user is logged in
+    if 'user_id' in session:
+        return redirect('/home')
+    return render_template('intro.html')
+
+# ============= TIME PATTERN ROUTES =============
+
+@app.route('/api/track-play', methods=['POST'])
+def api_track_play():
+    """Track when user plays a song"""
+    user_id = session.get('user_id')
+    
+    # Don't track for users not logged in
+    if not user_id:
+        return jsonify({'message': 'Not tracked - not logged in'}), 200
+    
+    data = request.json
+    song_data = data.get('song_data')
+    
+    if not song_data or 'mood' not in song_data:
+        return jsonify({'error': 'Missing song data or mood'}), 400
+    
+    success = track_song_play(user_id, song_data)
+    
+    if success:
+        return jsonify({'message': 'Play tracked successfully'}), 200
+    else:
+        return jsonify({'error': 'Failed to track play'}), 500
+
+@app.route('/api/time-recommendations', methods=['GET'])
+def api_time_recommendations():
+    """Get recommendations based on current time and user patterns"""
+    user_id = session.get('user_id')
+    
+    recommendations = get_time_based_recommendations(user_id)
+    return jsonify(recommendations), 200
+
+@app.route('/api/current-time-section', methods=['GET'])
+def api_current_time_section():
+    """Get current time section info"""
+    return jsonify({
+        'time_section': get_time_section(),
+        'display_name': get_user_time_section_display(),
+        'is_logged_in': 'user_id' in session
+    }), 200
+
+@app.route('/api/pattern-based-songs', methods=['GET'])
+def api_pattern_based_songs():
+    """Get song suggestions based on user's time patterns"""
+    user_id = session.get('user_id')
+    
+    if not user_id:
+        return jsonify({'has_suggestions': False, 'songs': []}), 200
+    
+    # Get user's patterns for current time
+    patterns = get_time_based_recommendations(user_id)
+    
+    if not patterns['has_patterns'] or not patterns['recommended_moods']:
+        return jsonify({'has_suggestions': False, 'songs': []}), 200
+    
+    # Get songs for the recommended moods
+    all_songs = []
+    for mood in patterns['recommended_moods'][:2]:  # Top 2 moods
+        songs = get_songs_by_mood(mood, limit=3)
+        for song in songs:
+            song['suggested_mood'] = mood  # Tag which mood this came from
+        all_songs.extend(songs)
+    
+    return jsonify({
+        'has_suggestions': True,
+        'songs': all_songs[:5],  # Limit to 5 total
+        'moods': patterns['recommended_moods'],
+        'message': patterns['message'],
+        'time_section': patterns['time_section']
+    }), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
