@@ -33,11 +33,12 @@
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             display: flex;
-            justify-content: center;
+            justify-content: flex-start; /* Changed from center */
             align-items: center;
             padding: 0 2rem;
             gap: 2rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative; /* Added to help position user-info */
         }
 
         .header h1 {
@@ -338,48 +339,49 @@
 
         /* Direct Search Section */
         .direct-search-section {
-            background: rgba(249, 115, 22, 0.05);
-            border-radius: 12px;
-            padding: 1rem;
-            border: 1px solid rgba(249, 115, 22, 0.2);
-            display: flex;
-            flex-direction: column;
-        }
+    background: rgba(249, 115, 22, 0.05);
+    border-radius: 12px;
+    padding: 1rem;
+    border: 1px solid rgba(249, 115, 22, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Added to prevent overflow */
+    min-width: 0; /* Added to allow content to shrink */
+}
 
-        .direct-header {
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #f97316;
-            margin-bottom: 0.75rem;
-        }
+.direct-search-section .song-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow: hidden; /* Added */
+}
 
-        .direct-search-section .song-cards {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
+/* Direct Search Section specific styles */
+.direct-search-section .song-card {
+    padding: 0.6rem;
+    min-width: 0; /* Added to allow shrinking */
+}
 
-        /* Direct Search Section specific styles */
-        .direct-search-section .song-card {
-            padding: 0.6rem;
-        }
+.direct-search-section .song-info {
+    min-width: 0; /* Added to allow text truncation */
+}
 
-        .direct-search-section .song-thumbnail {
-            width: 45px;
-            height: 45px;
-        }
+.direct-search-section .song-thumbnail {
+    width: 45px;
+    height: 45px;
+}
 
-        .direct-search-section .song-title {
-            font-size: 0.8rem;
-        }
+.direct-search-section .song-title {
+    font-size: 0.8rem;
+}
 
-        .direct-search-section .song-artist {
-            font-size: 0.7rem;
-        }
+.direct-search-section .song-artist {
+    font-size: 0.7rem;
+}
 
-        .direct-search-section .song-album {
-            font-size: 0.65rem;
-        }
+.direct-search-section .song-album {
+    font-size: 0.65rem;
+}
 
         /* Chat Input */
         .chat-input-container {
@@ -519,7 +521,7 @@
 .pattern-header {
     font-size: 1rem;
     font-weight: 600;
-    color: #10b981;
+    color: #00ffaa;
     margin-bottom: 0.5rem;
     display: flex;
     align-items: center;
@@ -528,7 +530,7 @@
 
 .pattern-message {
     font-size: 0.85rem;
-    color: #059669;
+    color: #00ffae;
     margin-bottom: 1rem;
     opacity: 0.9;
 }
