@@ -24,7 +24,7 @@ from time_pattern_service import (
 )
 
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-this-in-production')
+app.secret_key = os.getenv('SECRET_KEY')
 from auth_service import register_user, login_user, get_user
 
 # Debug file system BEFORE loading
