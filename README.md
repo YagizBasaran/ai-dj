@@ -8,7 +8,7 @@ https://ai-dj-y2v1.onrender.com
 4. [Quick Start](#4-quick-start-)
 5. [Dev Notes](#5-devs-notes-)
 
-## 1) Features 🤖
+# 1) Features 🤖
 
 ### Core Features (No Authentication Required)
 
@@ -51,7 +51,7 @@ https://ai-dj-y2v1.onrender.com
 - Provides personalized recommendations based on historical listening patterns
 - Displays pattern-based song suggestions when you return at the same time
 
-## 2) Technical Architecture 🔧
+# 2) Technical Architecture 🔧
 
 ### Backend Stack
 - **Framework**: Flask 3.0.3 (Python web framework)
@@ -79,7 +79,7 @@ https://ai-dj-y2v1.onrender.com
 4. Top songs → YouTube API → Video metadata + thumbnails
 5. Results → Frontend rendering
 
-## 3) Prerequisites ✔
+# 3) Prerequisites ✔
 
 ### Required
 - **Docker** (version 20.10 or higher)
@@ -114,7 +114,7 @@ Generate Service Account Key
 
 Add this to .env file lastly, SECRET_KEY="change-this-to-a-random-secret-key-in-productionx"
 
-## 4) Quick Start 🎶
+# 4) Quick Start 🎶
 
 ### Minimal Setup (5 minutes)
 ```bash
